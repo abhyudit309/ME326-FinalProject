@@ -17,6 +17,8 @@ class BlockTracker(object):
         self.blocks = []
         self.K = np.identity(3)
 
+
+
     def pub_markers(self):
 
         for i in range(len(blocks)):
@@ -61,49 +63,45 @@ class BlockTracker(object):
             # Publish the marker
             self.point_P_control_point_visual.publish(marker)
 
-    def camera_info_callback(self, data):
-        self.K = data.K
-
-    def camera_callback(self, data):
-        
-        img = data
-
-    def mask_img(color_img, color_mask='r'):
-
-        hsv_img = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
-
-        #Step 2: prep the mask
-        if (color_mask == 'r'):
-          lower_bound = np.array([0,128,10])
-          upper_bound = np.array([8,256,256])
-        elif (color_mask == 'y'):
-          lower_bound = np.array([23,128,10])
-          upper_bound = np.array([33,256,256])
-        elif (color_mask == 'g'):
-          lower_bound = np.array([33,60,10])
-          upper_bound = np.array([90,256,256])
-        elif (color_mask == 'b'):
-          lower_bound = np.array([100,200,10])
-          upper_bound = np.array([130,256,256])
-        else:
-          print("Color '" + color_mask + "' not implemented")
-          lower_bound = np.array([0,0,0])
-          upper_bound = np.array([0,0,0])
-
-        mask = cv2.inRange(hsv_img, lower_bound, upper_bound)
-        
-        if (color_mask == 'r'):
-          lower_bound = np.array([167,128,128])
-          upper_bound = np.array([180,255,255])
-          other_side_red_mask = cv2.inRange(hsv_img, lower_bound, upper_bound)
-          mask = mask + other_side_red_mask
-        #Step 3: Apply the mask; black region in the mask is 0, so when multiplied with original image removes all non-selected color 
-        mask_img = cv2.bitwise_and(color_img, color_img, mask = mask)
-        return mask_img
-
-
 class Block():
+    self.errorDistance = 0.1 #m
+    self.gamma = 0.9 #Time discounting (1/s)
+    self.maxSamples = 100 #number of positions held
+
     def __init__(self, pos, orientation, color):
-        self.lastPos = pos
-        self.lastOrientation = orientation
+        time = #rospy time
+        self.positions = np.array([pos])
+        self.orientations = np.array([orientation])
+        self.times = np.array([time])
         self.color = color
+
+    def GetEstPose(self):
+        time =  #rospy time
+        timeDiscounted = np.power(self.gamma, time - self.times)
+        estPos = numpy.average(self.positions, weights=timeDiscounted)
+        estOrientation = numpy.average(self.orientations, weights=timeDiscounted) #may not work bc of wrapping
+        return estPos, estOrientation
+
+
+    def PossibleObservation(self, pos, orientation, color):
+        time = #rospy time
+        if (color != self.color):
+            return false
+        
+        estPos, estOrientation = self.GetEstPose()
+
+        if (np.linalg.norm(estPos - pos) > self.errorDistance):
+            return false
+        
+        #Object found
+
+        self.positions = numpy.concatenate([pos], self.positions, axis = 0)
+        self.orientations = numpy.concatenate([pos], self.orientations, axis = 0)
+        self.times = numpy.concatenate([time], self.times, axis = 0)
+
+        if (self.positions.shape[0] > self.maxSamples):
+            self.positions = self.positions[0:self.maxSamples,:]
+            self.orientations = self.orientations[0:self.maxSamples,:]
+            self.times = self.times[0:self.maxSamples,:]
+
+        return true
