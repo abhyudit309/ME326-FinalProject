@@ -1,0 +1,6 @@
+devel_space: /home/connor/ME326-FinalProject/devel
+install: false
+install_space: /home/connor/ME326-FinalProject/install
+profile: default
+source_space: /home/connor/ME326-FinalProject/src
+workspace: /home/connor/ME326-FinalProject

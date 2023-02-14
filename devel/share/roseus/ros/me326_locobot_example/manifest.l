@@ -1,0 +1,1 @@
+/home/connor/ME326-FinalProject/devel/.private/me326_locobot_example/share/roseus/ros/me326_locobot_example/manifest.l
