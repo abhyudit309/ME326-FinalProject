@@ -1,7 +1,0 @@
-set(me326_locobot_example_SETUP_PY_SETUP_MODULE "distutils.core")
-set(me326_locobot_example_SETUP_PY_VERSION "0.0.0")
-set(me326_locobot_example_SETUP_PY_SCRIPTS "scripts")
-set(me326_locobot_example_SETUP_PY_PACKAGES "me326_locobot_example")
-set(me326_locobot_example_SETUP_PY_PACKAGE_DIRS "src/me326_locobot_example")
-set(me326_locobot_example_SETUP_PY_MODULES "")
-set(me326_locobot_example_SETUP_PY_MODULE_DIRS "")

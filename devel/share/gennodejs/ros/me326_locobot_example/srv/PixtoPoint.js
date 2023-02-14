@@ -1,1 +1,0 @@
-/home/connor/ME326-FinalProject/devel/.private/me326_locobot_example/share/gennodejs/ros/me326_locobot_example/srv/PixtoPoint.js

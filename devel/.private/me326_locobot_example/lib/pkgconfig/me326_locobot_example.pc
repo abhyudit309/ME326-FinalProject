@@ -1,8 +1,0 @@
-prefix=/home/connor/ME326-FinalProject/devel/.private/me326_locobot_example
-
-Name: me326_locobot_example
-Description: Description of me326_locobot_example
-Version: 0.0.0
-Cflags: -I/home/connor/ME326-FinalProject/devel/.private/me326_locobot_example/include
-Libs: -L${prefix}/lib 
-Requires: message_runtime roscpp rosbag rospy std_msgs geometry_msgs visualization_msgs tf tf2 tf2_ros sensor_msgs tf_conversions eigen_conversions nav_msgs pcl_ros pcl_conversions image_geometry image_transport cv_bridge
