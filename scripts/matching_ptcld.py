@@ -123,6 +123,30 @@ class PixelCloudMatcher:
         else:
             # use the camera model to get the 3D ray for the current pixel
             ray = self.camera_model.projectPixelTo3dRay((y, x))
+            print("ray: ",ray)
+
+            #My code
+            '''
+            cx = self.camera_model.cx()
+            cy = self.camera_model.cy()
+            fov_x = self.camera_model.fovX()
+            fov_y = self.camera_model.fovY()
+            my_ray = np.dstack(((x - cx)/fov_x, (y - cy)/fov_y, 1))
+            print("my_ray: ",my_ray)
+            '''
+            #P = self.camera_model.projectionMatrix()
+            #my_ray = np.linalg.pinv(P) @ np.array([x,y,1])
+            K = self.camera_model.intrinsicMatrix()
+            cx = K[0,2]
+            cy = K[1,2]
+            fov_x = K[0,0]
+            fov_y = K[1,1]
+            my_ray = np.array([(y - cx)/fov_x, (x - cy)/fov_y, 1])
+
+            my_ray = my_ray / np.linalg.norm(my_ray)
+            print("my_ray: ",my_ray)
+            #End my code
+
 
             # calculate the 3D point on the ray using the depth value
             point_3d = np.array(ray) * depth
@@ -139,6 +163,13 @@ class PixelCloudMatcher:
             self.point_3d_cloud = self.listener.transformPoint(point_cloud_frame, point_3d_geom_msg)
             self.thread_lock.release()
 
+            #My code
+            print("Point cloud: ", [self.point_3d_cloud.point.x,self.point_3d_cloud.point.y,self.point_3d_cloud.point.z])
+            R = self.camera_model.rotationMatrix()
+            print("R: ", R)
+            print("Mine rotated: ",R.T @ (my_ray * depth))
+            #End my code
+
             # do something with the point in the pointcloud frame
             # rospy.loginfo("Matched pixel (%d, %d) to point in pointcloud frame: %s", x, y, self.point_3d_cloud)
 
@@ -146,6 +177,7 @@ class PixelCloudMatcher:
         # create a camera model from the camera info
         self.camera_model = PinholeCameraModel()
         self.camera_model.fromCameraInfo(info_msg)
+        #print("info: ", info_msg)
 
     def service_callback(self,req):
         #this function takes in a requested topic for the image, and returns pixel point

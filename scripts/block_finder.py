@@ -136,18 +136,21 @@ class PixelCloudMatcher:
         if (self.colors is None or self.depth_image is None):
             return; #both cameras have not beet read yet
 
-        cx = self.camera_model.cx()
-        cy = self.camera_model.cy()
-        fov_x = self.camera_model.fovX()
-        fov_y = self.camera_model.fovY()
-
         v,u = np.meshgrid(np.arange(self.colors.shape[0]), np.arange(self.colors.shape[1]), indexing='ij')
-
-        rays = np.dstack(((u - cx)/fov_x, (u - cy)/fov_y, 1))
-        points = rays * depth_image
+        print("u: ", u)
+        print("v: ", v)
+        K = self.camera_model.intrinsicMatrix()
+        cx = K[0,2]
+        cy = K[1,2]
+        fov_x = K[0,0]
+        fov_y = K[1,1]
+        rays = np.dstack(((u - cx)/fov_x, (v - cy)/fov_y, np.ones_like(u)))
+        rays = rays / np.linalg.norm(rays, axis = 2)[..., np.newaxis]
+        print(rays)
+        
+        points = rays * self.depth_image
 
         color_tagged_points = np.concatenate((points, self.colors), axis=2)
-
 
 
     def info_callback(self, info_msg):
