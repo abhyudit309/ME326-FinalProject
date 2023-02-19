@@ -142,8 +142,8 @@ class OccupancyGrid:
             + gridEA[:,:,5] * black) / np.where(count > 0, count, 1)
         print(imgRGB.shape)
         plt.imshow(imgRGB)
-        plt.show()
-        time.sleep(1)
+        plt.show(block=False)
+        plt.pause(0.1)
 
     def color_image_callback(self,color_msg):
 
