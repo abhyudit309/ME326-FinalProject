@@ -35,10 +35,14 @@ class OccupancyGrid:
         self.cube_size = 0.02 #m
         self.grid_size = 0.01 #m
         self.field_size = 8 #m
+        self.obs_height = 0.04 #m
 
         grid_dim = int(self.field_size / self.grid_size)
+        self.grid_center = np.array([int(self.grid_dim / 2),int(self.grid_dim / 2)])
         self.grid = np.zeros((grid_dim, grid_dim, 6)) #[blank, red, yellow, green, blue, obs]
 
+
+        self recency_bias = 0.8
 
         '''
         self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
@@ -153,7 +157,9 @@ class OccupancyGrid:
 
         red_mask += cv2.inRange(hsv, lower_bound, upper_bound)
 
-        colors = red_mask + 2 * yellow_mask + 3 * green_mask + 4 * blue_mask
+        white_mask = np.where(red_mask + yellow_mask + green_mask + blue_mask < 0.5, 1, 0)
+
+        colors = np.dstack((white_mask, red_mask, yellow_mask, green_mask, blue_mask, white_mask))
 
         self.thread_lock.acquire()
         self.colors = colors
@@ -203,6 +209,10 @@ class OccupancyGrid:
             pass
         print(matrix4x4)
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3]
+
+        gridPoints = np.round(worldPoints[:, :, :2] / self.grid_size) + self.grid_center #ignore height
+        obj_type = colors * np.where(worldPoints[:,:,2] < self.obs_height, np.array([1,1,1,1,1,0]),np.array([0,1,1,1,1,1])) # obs or blank depending on height
+        self.grid[gridPoints[:,:,0],gridPoints[:,:,1]] = obj_type + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1]]
 
         '''print("center WP:\n",worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
         print("first WP:\n",worldPoints[0,0,:])
