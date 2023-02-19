@@ -57,13 +57,16 @@ class OccupancyGrid:
         self.point2 = np.zeros(3)
         '''
        
-        self.info_sub = rospy.Subscriber(self.depth_img_camera_info, CameraInfo, self.info_callback)
+        self.info_sub = rospy.Subscriber(self.depth_img_camera_info, CameraInfo, self.info_callback, queue_size=1)
         
-        self.depth_sub = rospy.Subscriber(self.depth_image_topic, Image, self.depth_callback)
-        self.image_sub = rospy.Subscriber(self.color_image_topic, Image, self.color_image_callback)
+        self.depth_sub = rospy.Subscriber(self.depth_image_topic, Image, self.depth_callback, queue_size=1, buff_size=2**24)
+        self.image_sub = rospy.Subscriber(self.color_image_topic, Image, self.color_image_callback, queue_size=1, buff_size=2**24)
 
-        self.colors = None # r = 1, y = 2, g = 3, b = 4
+        self.color_time = 0
+        self.colors = None 
         self.depth_image = None
+
+        self.last_update_time = 0
      
 
     def camera_cube_locator_marker_gen(self):
@@ -94,34 +97,6 @@ class OccupancyGrid:
         # Publish the marker
         self.camera_cube_locator_marker.publish(marker)
 
-        '''# Set the marker pose
-        self.thread_lock.acquire()
-        marker.pose.position.x = self.point1[0]
-        marker.pose.position.y = self.point1[1]
-        marker.pose.position.z = self.point1[2]
-        self.thread_lock.release()
-        # Set the marker color
-        marker.color.a = 1.0 #transparency
-        marker.color.r = 0.0
-        marker.color.g = 1.0
-        marker.color.b = 0.0
-
-        self.camera_cube_locator_marker1.publish(marker)
-
-        # Set the marker pose
-        self.thread_lock.acquire()
-        marker.pose.position.x = self.point2[0]
-        marker.pose.position.y = self.point2[1]
-        marker.pose.position.z = self.point2[2]
-        self.thread_lock.release()
-        # Set the marker color
-        marker.color.a = 1.0 #transparency
-        marker.color.r = 0.0
-        marker.color.g = 0.0
-        marker.color.b = 1.0
-
-        self.camera_cube_locator_marker2.publish(marker)'''
-
     def display_occupancy(self):
         red = np.array([1,0,0])
         yellow = np.array([1,1,0])
@@ -132,7 +107,7 @@ class OccupancyGrid:
 
         gridEA = self.grid[..., np.newaxis]
 
-        count = np.sum(gridEA, axis = 2)
+        count = np.sum(self.grid, axis = 2)[..., np.newaxis]
 
         imgRGB = (gridEA[:,:,0] * white 
             + gridEA[:,:,1] * red
@@ -140,7 +115,11 @@ class OccupancyGrid:
             + gridEA[:,:,3] * green
             + gridEA[:,:,4] * blue
             + gridEA[:,:,5] * black) / np.where(count > 0, count, 1)
-        print(imgRGB.shape)
+        
+        '''red_ind = np.unravel_index(np.argmax(imgRGB[:,:,1]),imgRGB.shape[0:2])
+        print("max red index:", red_ind)
+        print("max red:", imgRGB[red_ind[0],red_ind[1],:])'''
+
         plt.imshow(imgRGB)
         plt.show(block=False)
         plt.pause(0.1)
@@ -188,8 +167,12 @@ class OccupancyGrid:
 
         self.thread_lock.acquire()
         self.colors = colors
+        self.color_time = color_msg.header.stamp
         self.thread_lock.release()
-            
+        '''
+        print(" ")
+        print("Now:", rospy.Time())
+        print("Image time:", color_msg.header.stamp)'''
 
         self.scan()
 
@@ -215,18 +198,12 @@ class OccupancyGrid:
         fov_y = K[1,1]
         rays = np.dstack((np.ones_like(u), (cx - u)/fov_x, (cy - v)/fov_y))
         #rays = rays / np.linalg.norm(rays, axis = 2)[..., np.newaxis] # Why does it not want to be normalized?
-        '''print("center ray: ",rays[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
-        print("first ray: ",rays[0,0,:])
-        print("last ray: ",rays[-1,-1,:])
-        print("center depth: ",self.depth_image[int(self.depth_image.shape[0]/2),int(self.depth_image.shape[1]/2)])
-        print("first depth: ",self.depth_image[0,0])
-        print("last depth: ",self.depth_image[-1,-1])'''
         
         points = rays * self.depth_image[..., np.newaxis]
         point4s = np.dstack((points,np.ones_like(u)))[..., np.newaxis]
         matrix4x4 = np.zeros((4,4))
         try:
-            (trans, rot) = self.listener.lookupTransform('locobot/odom','locobot/camera_link', rospy.Time())
+            (trans, rot) = self.listener.lookupTransform('locobot/odom','locobot/camera_link', self.color_time)
             #print("Translation: ", trans)
             matrix4x4 = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
 
@@ -245,31 +222,19 @@ class OccupancyGrid:
         tall = np.where(worldPoints[:,:,2] < self.obs_height, 0,1) # obs or blank depending on height
         self.colors[:,:,0] *= (1-tall)
         self.colors[:,:,5] *= tall
+        
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
         self.grid[0,0] = np.array([1,0,0,0,0,0])
-        '''print("center WP:\n",worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
-        print("first WP:\n",worldPoints[0,0,:])
-        print("last WP:\n",worldPoints[-1,-1,:])
-        #print("WP:\n",worldPoints)
-        #color_tagged_points = np.concatenate((points, self.colors), axis=2)
-        #time.sleep(1)
-        centerWP = worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:]
-        self.point[0] = centerWP[0,0]
-        self.point[1] = centerWP[1,0]
-        self.point[2] = centerWP[2,0]
 
-        firstWP = worldPoints[0,0,:]
-        self.point1[0] = firstWP[0,0]
-        self.point1[1] = firstWP[1,0]
-        self.point1[2] = firstWP[2,0]
+        now = rospy.Time.now().to_sec()
+        print("dt:", now - self.last_update_time)
+        self.last_update_time = now
 
-        lastWP = worldPoints[-1,-1,:]
-        self.point2[0] = lastWP[0,0]
-        self.point2[1] = lastWP[1,0]
-        self.point2[2] = lastWP[2,0]
+        '''red_ind = np.unravel_index(np.argmax(self.grid[:,:,1]),self.grid.shape[0:2])
+        print("max red index:", red_ind)
+        print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
 
-        self.camera_cube_locator_marker_gen()'''
-        self.display_occupancy()
+        #self.display_occupancy()
 
 
     def info_callback(self, info_msg):
