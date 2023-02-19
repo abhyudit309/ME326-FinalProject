@@ -31,11 +31,25 @@ class OccupancyGrid:
         # create a tf listener
         self.listener = tf.TransformListener()
 
-        self.uv_pix = [0,0] #find the pixel index
 
+        self.cube_size = 0.02 #m
+        self.grid_size = 0.01 #m
+        self.field_size = 8 #m
+
+        grid_dim = int(self.field_size / self.grid_size)
+        self.grid = np.zeros((grid_dim, grid_dim, 6)) #[blank, red, yellow, green, blue, obs]
+
+
+        '''
         self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
+        self.camera_cube_locator_marker1 = rospy.Publisher("/locobot/camera_cube_locator1",Marker, queue_size=1)
+        self.camera_cube_locator_marker2 = rospy.Publisher("/locobot/camera_cube_locator2",Marker, queue_size=1)
 
+        
         self.point = np.zeros(3)
+        self.point1 = np.zeros(3)
+        self.point2 = np.zeros(3)
+        '''
        
         self.info_sub = rospy.Subscriber(self.depth_img_camera_info, CameraInfo, self.info_callback)
         
@@ -44,15 +58,12 @@ class OccupancyGrid:
 
         self.colors = None # r = 1, y = 2, g = 3, b = 4
         self.depth_image = None
-
-        self.cube_size = 0.08
      
 
     def camera_cube_locator_marker_gen(self):
-        #this is very simple because we are just putting the point P in the base_link frame (it is static in this frame)
         marker = Marker()
         self.thread_lock.acquire()
-        marker.header.frame_id = "locobot/camera_depth_link" #/locobot/camera_cube_locator
+        marker.header.frame_id = 'locobot/odom' #/locobot/camera_cube_locator
         self.thread_lock.release()
         marker.header.stamp = rospy.Time.now()
         marker.id = 0
@@ -77,6 +88,33 @@ class OccupancyGrid:
         # Publish the marker
         self.camera_cube_locator_marker.publish(marker)
 
+        # Set the marker pose
+        self.thread_lock.acquire()
+        marker.pose.position.x = self.point1[0]
+        marker.pose.position.y = self.point1[1]
+        marker.pose.position.z = self.point1[2]
+        self.thread_lock.release()
+        # Set the marker color
+        marker.color.a = 1.0 #transparency
+        marker.color.r = 0.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+
+        self.camera_cube_locator_marker1.publish(marker)
+
+        # Set the marker pose
+        self.thread_lock.acquire()
+        marker.pose.position.x = self.point2[0]
+        marker.pose.position.y = self.point2[1]
+        marker.pose.position.z = self.point2[2]
+        self.thread_lock.release()
+        # Set the marker color
+        marker.color.a = 1.0 #transparency
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+
+        self.camera_cube_locator_marker2.publish(marker)
 
     def color_image_callback(self,color_msg):
 
@@ -120,6 +158,7 @@ class OccupancyGrid:
         self.thread_lock.acquire()
         self.colors = colors
         self.thread_lock.release()
+            
 
         self.scan()
 
@@ -143,24 +182,32 @@ class OccupancyGrid:
         cy = K[1,2]
         fov_x = K[0,0]
         fov_y = K[1,1]
-        rays = np.dstack(((u - cx)/fov_x, (v - cy)/fov_y, np.ones_like(u)))
-        rays = rays / np.linalg.norm(rays, axis = 2)[..., np.newaxis]
-        print("center ray: ",rays[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
+        rays = np.dstack((np.ones_like(u), (cx - u)/fov_x, (cy - v)/fov_y))
+        #rays = rays / np.linalg.norm(rays, axis = 2)[..., np.newaxis] # Why does it not want to be normalized?
+        '''print("center ray: ",rays[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
         print("first ray: ",rays[0,0,:])
+        print("last ray: ",rays[-1,-1,:])
+        print("center depth: ",self.depth_image[int(self.depth_image.shape[0]/2),int(self.depth_image.shape[1]/2)])
+        print("first depth: ",self.depth_image[0,0])
+        print("last depth: ",self.depth_image[-1,-1])'''
         
         points = rays * self.depth_image[..., np.newaxis]
         point4s = np.dstack((points,np.ones_like(u)))[..., np.newaxis]
         matrix4x4 = np.zeros((4,4))
         try:
-            (trans, rot) = self.listener.lookupTransform('locobot/camera_link', 'locobot/odom', rospy.Time())
+            (trans, rot) = self.listener.lookupTransform('locobot/odom','locobot/camera_link', rospy.Time())
+            print("Translation: ", trans)
             matrix4x4 = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
 
         except (tf.LookupException, tf.ConnectivityException):
             pass
         print(matrix4x4)
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3]
-        print("center WP:\n",worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
+
+        '''print("center WP:\n",worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
         print("first WP:\n",worldPoints[0,0,:])
+        print("last WP:\n",worldPoints[-1,-1,:])
+        #print("WP:\n",worldPoints)
         #color_tagged_points = np.concatenate((points, self.colors), axis=2)
         #time.sleep(1)
         centerWP = worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:]
@@ -168,7 +215,17 @@ class OccupancyGrid:
         self.point[1] = centerWP[1,0]
         self.point[2] = centerWP[2,0]
 
-        self.camera_cube_locator_marker_gen()
+        firstWP = worldPoints[0,0,:]
+        self.point1[0] = firstWP[0,0]
+        self.point1[1] = firstWP[1,0]
+        self.point1[2] = firstWP[2,0]
+
+        lastWP = worldPoints[-1,-1,:]
+        self.point2[0] = lastWP[0,0]
+        self.point2[1] = lastWP[1,0]
+        self.point2[2] = lastWP[2,0]
+
+        self.camera_cube_locator_marker_gen()'''
 
 
     def info_callback(self, info_msg):
