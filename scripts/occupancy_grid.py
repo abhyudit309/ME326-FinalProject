@@ -13,6 +13,8 @@ from geometry_msgs.msg import PointStamped
 from visualization_msgs.msg import Marker
 import threading
 
+from matplotlib import pyplot as plt
+
 from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 
 
@@ -38,11 +40,11 @@ class OccupancyGrid:
         self.obs_height = 0.04 #m
 
         grid_dim = int(self.field_size / self.grid_size)
-        self.grid_center = np.array([int(self.grid_dim / 2),int(self.grid_dim / 2)])
+        self.grid_center = np.rint([grid_dim / 2,grid_dim / 2])
         self.grid = np.zeros((grid_dim, grid_dim, 6)) #[blank, red, yellow, green, blue, obs]
 
 
-        self recency_bias = 0.8
+        self.recency_bias = 0.8
 
         '''
         self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
@@ -92,7 +94,7 @@ class OccupancyGrid:
         # Publish the marker
         self.camera_cube_locator_marker.publish(marker)
 
-        # Set the marker pose
+        '''# Set the marker pose
         self.thread_lock.acquire()
         marker.pose.position.x = self.point1[0]
         marker.pose.position.y = self.point1[1]
@@ -118,7 +120,30 @@ class OccupancyGrid:
         marker.color.g = 0.0
         marker.color.b = 1.0
 
-        self.camera_cube_locator_marker2.publish(marker)
+        self.camera_cube_locator_marker2.publish(marker)'''
+
+    def display_occupancy(self):
+        red = np.array([1,0,0])
+        yellow = np.array([1,1,0])
+        green = np.array([0,1,0])
+        blue = np.array([0,0,1])
+        white = np.array([1,1,1])
+        black = np.array([0,0,0])
+
+        gridEA = self.grid[..., np.newaxis]
+
+        count = np.sum(gridEA, axis = 2)
+
+        imgRGB = (gridEA[:,:,0] * white 
+            + gridEA[:,:,1] * red
+            + gridEA[:,:,2] * yellow
+            + gridEA[:,:,3] * green
+            + gridEA[:,:,4] * blue
+            + gridEA[:,:,5] * black) / np.where(count > 0, count, 1)
+        print(imgRGB.shape)
+        plt.imshow(imgRGB)
+        plt.show()
+        time.sleep(1)
 
     def color_image_callback(self,color_msg):
 
@@ -202,18 +227,26 @@ class OccupancyGrid:
         matrix4x4 = np.zeros((4,4))
         try:
             (trans, rot) = self.listener.lookupTransform('locobot/odom','locobot/camera_link', rospy.Time())
-            print("Translation: ", trans)
+            #print("Translation: ", trans)
             matrix4x4 = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
 
         except (tf.LookupException, tf.ConnectivityException):
             pass
-        print(matrix4x4)
-        worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3]
+        #print(matrix4x4)
+        worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
 
-        gridPoints = np.round(worldPoints[:, :, :2] / self.grid_size) + self.grid_center #ignore height
-        obj_type = colors * np.where(worldPoints[:,:,2] < self.obs_height, np.array([1,1,1,1,1,0]),np.array([0,1,1,1,1,1])) # obs or blank depending on height
-        self.grid[gridPoints[:,:,0],gridPoints[:,:,1]] = obj_type + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1]]
+        gridPoints = np.rint(worldPoints[:, :, :2] / self.grid_size + self.grid_center).astype(int) #ignore height
+        out_of_bounds = (np.greater_equal(gridPoints[:,:,0], self.grid.shape[0])
+        + np.greater_equal(gridPoints[:,:,1], self.grid.shape[1])
+        + np.less(gridPoints[:,:,0], 0)
+        + np.less(gridPoints[:,:,1], 0))[..., np.newaxis]
 
+        gridPoints = np.where(out_of_bounds > 0, np.array([0,0]), gridPoints)
+        tall = np.where(worldPoints[:,:,2] < self.obs_height, 0,1) # obs or blank depending on height
+        self.colors[:,:,0] *= (1-tall)
+        self.colors[:,:,5] *= tall
+        self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
+        self.grid[0,0] = np.array([1,0,0,0,0,0])
         '''print("center WP:\n",worldPoints[int(rays.shape[0]/2),int(rays.shape[1]/2),:])
         print("first WP:\n",worldPoints[0,0,:])
         print("last WP:\n",worldPoints[-1,-1,:])
@@ -236,6 +269,7 @@ class OccupancyGrid:
         self.point2[2] = lastWP[2,0]
 
         self.camera_cube_locator_marker_gen()'''
+        self.display_occupancy()
 
 
     def info_callback(self, info_msg):
