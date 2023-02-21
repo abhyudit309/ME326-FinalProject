@@ -20,6 +20,8 @@ from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 
 class OccupancyGrid:
     def __init__(self):
+        rospy.init_node("occupancy_grid")
+        
         self.bridge = CvBridge()
         self.thread_lock = threading.Lock() #threading # self.thread_lock.acquire() # self.thread_lock.release()
 
@@ -36,6 +38,7 @@ class OccupancyGrid:
 
         self.cube_size = 0.02 #m
         self.grid_size = 0.01 #m
+        
         self.field_size = 8 #m
         self.obs_height = 0.04 #m
 
@@ -220,15 +223,25 @@ class OccupancyGrid:
 
         gridPoints = np.where(out_of_bounds > 0, np.array([0,0]), gridPoints)
         tall = np.where(worldPoints[:,:,2] < self.obs_height, 0,1) # obs or blank depending on height
+        
+        self.thread_lock.acquire()
+
         self.colors[:,:,0] *= (1-tall)
         self.colors[:,:,5] *= tall
         
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
         self.grid[0,0] = np.array([1,0,0,0,0,0])
+        
+        self.thread_lock.release()
 
         now = rospy.Time.now().to_sec()
         print("dt:", now - self.last_update_time)
+        self.thread_lock.acquire()
         self.last_update_time = now
+        self.thread_lock.release()
+
+        #print(np.round(self.grid[550-3:550+3,400-3:400+3,0] * 100) / 100)
+        #print(np.round(self.grid[550-3:550+3,400-3:400+3,4] * 100) / 100)
 
         '''red_ind = np.unravel_index(np.argmax(self.grid[:,:,1]),self.grid.shape[0:2])
         print("max red index:", red_ind)
@@ -251,7 +264,6 @@ class OccupancyGrid:
 
 if __name__ == "__main__":
     
-    rospy.init_node("block_finder")
     occupancy_grid = OccupancyGrid()
 
     '''rospy.init_node("pixel_cloud_matcher_service")
