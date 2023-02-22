@@ -75,11 +75,13 @@ class DriveController:
         control_msg = Twist()
         control_msg.linear.x = float(v) #forward velocity
         control_msg.angular.z = float(w) #angular velocity
+        '''
         print("Target:", self.target)
         print("P: ", p)
         print("Error:", self.target - p)
         print("V:", v)
         print("w:", w)
+        '''
         #now publish the control output:
         if(self.go):
             self.mobile_base_vel_publisher.publish(control_msg)

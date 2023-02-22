@@ -28,7 +28,7 @@ class Conductor:
 
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
-        self.close_enough = 0.005 #m
+        self.close_enough = 0.05 #m
 
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
@@ -47,15 +47,17 @@ class Conductor:
         elif(self.state == 3):
             self.driving_state(self.bring_block_to)
         elif(self.state == 4):
-            self.state += 1 # not implemented
+            self.state = 0 # not implemented
             pass
         else:
             print("State number not in range:", self.state)
+
         if (self.state != starting_state):
             print("Swapping to state:", self.state)
 
     def driving_state(self,target):
         time = rospy.Time.now().to_sec()
+        self.drive_controller.go = True
         if (time - self.replan_time > self.replan_every):
             self.path_planner.plan(target)
             self.replan_time = time
