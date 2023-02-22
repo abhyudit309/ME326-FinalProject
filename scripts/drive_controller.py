@@ -28,6 +28,9 @@ class DriveController:
         self.p = np.zeros(2)
         self.thread_lock = threading.Lock()
 
+        self.maxSpeed = 0.3 #m/s
+        self.maxRotation = 1 #rad / s
+
         self.go = False
 
         rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback) #this says: listen to the odom message, of type odometry, and send that to the callback function specified
@@ -71,7 +74,9 @@ class DriveController:
         u = np.ravel((k*np.linalg.inv(M)) @ (self.target - p).reshape((2,1)))
 
         v = u[0]
+        v = v * np.clip(self.maxSpeed/np.linalg.norm(v) 0, 1) #clip speed
         w = u[1]
+        w = w * np.clip(self.maxRotation/np.linalg.norm(w) 0, 1) #clip rotation
         control_msg = Twist()
         control_msg.linear.x = float(v) #forward velocity
         control_msg.angular.z = float(w) #angular velocity

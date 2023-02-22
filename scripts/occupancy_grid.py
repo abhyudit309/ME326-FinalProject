@@ -72,7 +72,7 @@ class OccupancyGrid:
         self.last_update_time = 0
      
 
-    def camera_cube_locator_marker_gen(self):
+    '''def camera_cube_locator_marker_gen(self):
         marker = Marker()
         self.thread_lock.acquire()
         marker.header.frame_id = 'locobot/odom' #/locobot/camera_cube_locator
@@ -98,7 +98,7 @@ class OccupancyGrid:
         marker.color.b = 0.0
 
         # Publish the marker
-        self.camera_cube_locator_marker.publish(marker)
+        self.camera_cube_locator_marker.publish(marker)'''
 
     def display_occupancy(self):
         red = np.array([1,0,0])
