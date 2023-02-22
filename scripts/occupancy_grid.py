@@ -20,7 +20,7 @@ from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 
 class OccupancyGrid:
     def __init__(self):
-        rospy.init_node("occupancy_grid")
+        #rospy.init_node("occupancy_grid")
         
         self.bridge = CvBridge()
         self.thread_lock = threading.Lock() #threading # self.thread_lock.acquire() # self.thread_lock.release()
@@ -215,7 +215,7 @@ class OccupancyGrid:
         #print(matrix4x4)
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
 
-        gridPoints = to_grid(worldPoints)
+        gridPoints = self.to_grid(worldPoints)
         out_of_bounds = (np.greater_equal(gridPoints[:,:,0], self.grid.shape[0])
         + np.greater_equal(gridPoints[:,:,1], self.grid.shape[1])
         + np.less(gridPoints[:,:,0], 0)
@@ -235,7 +235,7 @@ class OccupancyGrid:
         self.thread_lock.release()
 
         now = rospy.Time.now().to_sec()
-        print("dt:", now - self.last_update_time)
+        #print("dt:", now - self.last_update_time)
         self.thread_lock.acquire()
         self.last_update_time = now
         self.thread_lock.release()
@@ -248,10 +248,10 @@ class OccupancyGrid:
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
 
         #self.display_occupancy()
-    def to_grid(points):
+    def to_grid(self,points):
         return np.rint(points[..., :2] / self.grid_size + self.grid_center).astype(int) #ignore height
 
-    def to_world(grid_points):
+    def to_world(self,grid_points):
         return (grid_points - self.grid_center) * self.grid_size
 
     def info_callback(self, info_msg):
