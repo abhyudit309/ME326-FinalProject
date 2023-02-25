@@ -35,7 +35,8 @@ class Conductor:
 
     def state_machine(self):
         starting_state = self.state
-        self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
+        #self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
+        self.station_tracker.count()
         if(self.state == 0):
             self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
             self.state += 1
@@ -57,7 +58,7 @@ class Conductor:
 
     def driving_state(self,target):
         time = rospy.Time.now().to_sec()
-        self.drive_controller.go = True
+        #self.drive_controller.go = True                            FIX ME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (time - self.replan_time > self.replan_every):
             self.path_planner.plan(target)
             self.replan_time = time
@@ -71,6 +72,6 @@ class Conductor:
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
     conductor = Conductor()
-    rospy.sleep(2.) #wait for vision
+    rospy.sleep(1.) #wait for vision
     while True:
         conductor.state_machine()

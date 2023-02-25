@@ -33,7 +33,7 @@ class PathPlanner:
 
     def generate_obs_grid(self):
         self.occupancy_grid.thread_lock.acquire()
-        occ_grid = self.occupancy_grid.grid
+        occ_grid = self.occupancy_grid.grid.copy()
         self.occupancy_grid.thread_lock.release()
 
 

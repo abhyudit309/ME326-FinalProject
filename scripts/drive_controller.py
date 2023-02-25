@@ -74,9 +74,9 @@ class DriveController:
         u = np.ravel((k*np.linalg.inv(M)) @ (self.target - p).reshape((2,1)))
 
         v = u[0]
-        v = v * np.clip(self.maxSpeed/np.linalg.norm(v) 0, 1) #clip speed
+        v = v * np.clip(self.maxSpeed/np.linalg.norm(v), 0, 1) #clip speed
         w = u[1]
-        w = w * np.clip(self.maxRotation/np.linalg.norm(w) 0, 1) #clip rotation
+        w = w * np.clip(self.maxRotation/np.linalg.norm(w), 0, 1) #clip rotation
         control_msg = Twist()
         control_msg.linear.x = float(v) #forward velocity
         control_msg.angular.z = float(w) #angular velocity

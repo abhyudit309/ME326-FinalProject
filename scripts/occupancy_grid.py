@@ -47,7 +47,8 @@ class OccupancyGrid:
         self.grid = np.zeros((grid_dim, grid_dim, 6)) #[blank, red, yellow, green, blue, obs]
 
 
-        self.recency_bias = 0.8
+        self.recency_bias = 0.3
+        self.i = 0
 
         '''
         self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
@@ -231,7 +232,7 @@ class OccupancyGrid:
         
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
         self.grid[0,0] = np.array([1,0,0,0,0,0])
-        
+        self.i += 1
         self.thread_lock.release()
 
         now = rospy.Time.now().to_sec()
@@ -246,8 +247,8 @@ class OccupancyGrid:
         '''red_ind = np.unravel_index(np.argmax(self.grid[:,:,1]),self.grid.shape[0:2])
         print("max red index:", red_ind)
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
-
-        #self.display_occupancy()
+        if(self.i % 10 == 0):
+            self.display_occupancy()
     def to_grid(self,points):
         return np.rint(points[..., :2] / self.grid_size + self.grid_center).astype(int) #ignore height
 
