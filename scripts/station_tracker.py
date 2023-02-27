@@ -15,7 +15,7 @@ class StationTracker:
         self.occupancy_grid = occupancy_grid
         self.drive_controller = drive_controller
 
-        self.station_locations = np.array([[0,0],[1,0],[0,1]])
+        self.station_locations = np.array([[0,-1],[-1,0],[0,1]])
         self.radius = 0.25
 
         self.team_colors = [0,1,2,3] #  red:0 | yellow:1 | green:2 | blue:3 

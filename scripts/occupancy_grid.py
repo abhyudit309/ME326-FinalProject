@@ -215,6 +215,7 @@ class OccupancyGrid:
             pass
         #print(matrix4x4)
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
+        worldPoints = worldPoints[..., [1,0,2]] #swap x,y
 
         gridPoints = self.to_grid(worldPoints)
         out_of_bounds = (np.greater_equal(gridPoints[:,:,0], self.grid.shape[0])
@@ -248,8 +249,8 @@ class OccupancyGrid:
         print("max red index:", red_ind)
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
         
-        '''if(self.i % 10 == 0):
-            self.display_occupancy()'''
+        if(self.i % 10 == 0):
+            self.display_occupancy()
 
 
 
@@ -257,7 +258,7 @@ class OccupancyGrid:
         return np.rint(points[..., :2] / self.grid_size + self.grid_center).astype(int) #ignore height
 
     def to_world(self,grid_points):
-        return (grid_points - self.grid_center) * self.grid_size
+        return ((grid_points - self.grid_center) * self.grid_size)
 
     def info_callback(self, info_msg):
         # create a camera model from the camera info
