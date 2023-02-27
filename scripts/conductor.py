@@ -10,6 +10,7 @@ from occupancy_grid import OccupancyGrid
 from path_planner import PathPlanner
 from station_tracker import StationTracker
 from drive_controller import DriveController
+from nav_msgs.msg import Odometry
 
 class Conductor:
     def __init__(self):
@@ -21,22 +22,31 @@ class Conductor:
         # State 3: Moving to block location
         # State 4: Placing block
 
+        self.x = 0
+        self.y = 0
+        
         self.occupancy_grid = OccupancyGrid()
         self.path_planner = PathPlanner(self.occupancy_grid)
         self.drive_controller = DriveController()
-        self.station_tracker = StationTracker(self.occupancy_grid,self.drive_controller)
+        self.station_tracker = StationTracker(self.occupancy_grid, self.drive_controller)
 
-        self.replan_every = 0.5 #s
+        self.replan_every = 1.5 #s
         self.replan_time = -99999999
         self.close_enough = 0.05 #m
-
+        
         self.spin_speed = 1 # rad/s
         self.spin_time = 2*np.pi / self.spin_speed #s
         self.stop_time = 0.5 #s
 
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
+        rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
 
+    def OdometryCallback(self, data):
+        self.x = data.pose.pose.position.x
+        self.y = data.pose.pose.position.y
+        self.x_init = (self.x, self.y)
+    
     def state_machine(self):
         starting_state = self.state
         
@@ -46,12 +56,12 @@ class Conductor:
             if not(self.get_block_from is None):
                 self.state += 1
         elif(self.state == 1):
-            self.driving_state(self.get_block_from)
+            self.driving_state(self.bring_block_to, self.get_block_from)
         elif(self.state == 2):
             self.state += 1 # not implemented
             pass
         elif(self.state == 3):
-            self.driving_state(self.bring_block_to)
+            self.driving_state(self.get_block_from, self.bring_block_to)
         elif(self.state == 4):
             self.state = 0 # not implemented
             pass
@@ -61,15 +71,17 @@ class Conductor:
         if (self.state != starting_state):
             print("Swapping to state:", self.state)
 
-    def driving_state(self,target):
+    def driving_state(self, start, target):
         time = rospy.Time.now().to_sec()
+        self.drive_controller.go = True        
+        
         if (time - self.replan_time > self.replan_every):
-            self.path_planner.plan(target)
-            self.replan_time = time
-
-        self.drive_controller.set_target(self.path_planner.current_target())
+            self.path_planner.generate_obs_grid()       
+            self.path_planner.plan(self.x_init, target)
+            self.path_planner.path_publisher()
+            self.replan_time = time     
+     
         pos = self.drive_controller.get_P_pos()
-
         if (np.linalg.norm(pos-target) < self.close_enough):
             self.state += 1
 
@@ -84,7 +96,6 @@ class Conductor:
         stop_timer_end = rospy.Time.now().to_sec() + self.stop_time
         while(rospy.Time.now().to_sec() < stop_timer_end):
             self.drive_controller.manual(0,0)
-
 
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
