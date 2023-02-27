@@ -37,9 +37,9 @@ class OccupancyGrid:
 
 
         self.cube_size = 0.02 #m
-        self.grid_size = 0.01 #m
+        self.grid_size = 0.005 #m
         
-        self.field_size = 8 #m
+        self.field_size = 4.5 #m
         self.obs_height = 0.04 #m
 
         grid_dim = int(self.field_size / self.grid_size)
@@ -247,8 +247,12 @@ class OccupancyGrid:
         '''red_ind = np.unravel_index(np.argmax(self.grid[:,:,1]),self.grid.shape[0:2])
         print("max red index:", red_ind)
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
-        if(self.i % 10 == 0):
-            self.display_occupancy()
+        
+        '''if(self.i % 10 == 0):
+            self.display_occupancy()'''
+
+
+
     def to_grid(self,points):
         return np.rint(points[..., :2] / self.grid_size + self.grid_center).astype(int) #ignore height
 

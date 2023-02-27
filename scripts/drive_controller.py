@@ -36,6 +36,7 @@ class DriveController:
         rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback) #this says: listen to the odom message, of type odometry, and send that to the callback function specified
 
     def set_target(self, target):
+        self.go = True
         self.target = target
 
     def get_P_pos(self):
@@ -91,3 +92,9 @@ class DriveController:
         if(self.go):
             self.mobile_base_vel_publisher.publish(control_msg)
         
+    def manual(self, v, w):
+        self.go = False
+        control_msg = Twist()
+        control_msg.linear.x = float(v) #forward velocity
+        control_msg.angular.z = float(w) #angular velocity
+        self.mobile_base_vel_publisher.publish(control_msg)

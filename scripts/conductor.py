@@ -24,22 +24,27 @@ class Conductor:
         self.occupancy_grid = OccupancyGrid()
         self.path_planner = PathPlanner(self.occupancy_grid)
         self.drive_controller = DriveController()
-        self.station_tracker = StationTracker(self.occupancy_grid)
+        self.station_tracker = StationTracker(self.occupancy_grid,self.drive_controller)
 
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
         self.close_enough = 0.05 #m
+
+        self.spin_speed = 1 # rad/s
+        self.spin_time = 2*np.pi / self.spin_speed #s
+        self.stop_time = 0.5 #s
 
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
 
     def state_machine(self):
         starting_state = self.state
-        #self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
-        self.station_tracker.count()
+        
         if(self.state == 0):
+            self.spin_scan()
             self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
-            self.state += 1
+            if not(self.get_block_from is None):
+                self.state += 1
         elif(self.state == 1):
             self.driving_state(self.get_block_from)
         elif(self.state == 2):
@@ -58,7 +63,6 @@ class Conductor:
 
     def driving_state(self,target):
         time = rospy.Time.now().to_sec()
-        #self.drive_controller.go = True                            FIX ME!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (time - self.replan_time > self.replan_every):
             self.path_planner.plan(target)
             self.replan_time = time
@@ -69,9 +73,22 @@ class Conductor:
         if (np.linalg.norm(pos-target) < self.close_enough):
             self.state += 1
 
+    def spin_scan(self):
+        print("Spinning")
+        spin_timer_end = rospy.Time.now().to_sec() + self.spin_time
+        
+        while(rospy.Time.now().to_sec() < spin_timer_end):
+            self.drive_controller.manual(0,self.spin_speed)
+        
+    def stop(self):
+        stop_timer_end = rospy.Time.now().to_sec() + self.stop_time
+        while(rospy.Time.now().to_sec() < stop_timer_end):
+            self.drive_controller.manual(0,0)
+
+
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
     conductor = Conductor()
-    rospy.sleep(1.) #wait for vision
+    conductor.stop()
     while True:
         conductor.state_machine()
