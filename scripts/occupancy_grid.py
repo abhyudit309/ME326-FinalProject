@@ -19,8 +19,8 @@ from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 
 
 class OccupancyGrid:
-    def __init__(self):
-        #rospy.init_node("occupancy_grid")
+    def __init__(self, run_on_robot):
+        self.run_on_robot = run_on_robot
         
         self.bridge = CvBridge()
         self.thread_lock = threading.Lock() #threading # self.thread_lock.acquire() # self.thread_lock.release()
@@ -108,8 +108,9 @@ class OccupancyGrid:
         blue = np.array([0,0,1])
         white = np.array([1,1,1])
         obs = np.array([0.463,0,0.769])
-
+        self.thread_lock.acquire()
         gridEA = self.grid[..., np.newaxis]
+        self.thread_lock.release()
 
         count = np.sum(self.grid, axis = 2)[..., np.newaxis]
 
@@ -126,7 +127,7 @@ class OccupancyGrid:
 
         plt.imshow(imgRGB)
         plt.show(block=False)
-        plt.pause(0.025)
+        plt.pause(0.001)
 
     def color_image_callback(self,color_msg):
 
@@ -248,10 +249,9 @@ class OccupancyGrid:
         '''red_ind = np.unravel_index(np.argmax(self.grid[:,:,1]),self.grid.shape[0:2])
         print("max red index:", red_ind)
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
-        
-        '''if(self.i % 10 == 0):
-            self.display_occupancy()'''
 
+        '''if (self.i % 10 == 0):
+            self.display_occupancy()'''
 
 
     def to_grid(self,points):
@@ -271,12 +271,3 @@ class OccupancyGrid:
         resp = PixtoPointResponse()
         resp.ptCld_point = self.point_3d_cloud
         return resp
-
-if __name__ == "__main__":
-    
-    occupancy_grid = OccupancyGrid()
-
-    '''rospy.init_node("pixel_cloud_matcher_service")
-    matcher = PixelCloudMatcher()
-    s = rospy.Service('pix_to_point',PixtoPoint,matcher.service_callback)'''
-    rospy.spin()

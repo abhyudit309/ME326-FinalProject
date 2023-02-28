@@ -17,11 +17,13 @@ import threading
 
 class DriveController:
 
-    def __init__(self):
+    def __init__(self, run_on_robot):
+        self.run_on_robot = run_on_robot
+        
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
-        self.L = 0.2
-        self.target = np.zeros(2)
+        self.L = 0.3
+        self.path = np.zeros((1,2))
         self.p = np.zeros(2)
         self.thread_lock = threading.Lock()
 
@@ -30,15 +32,23 @@ class DriveController:
 
         self.go = False
 
-        rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
-        rospy.Subscriber("position", Float32MultiArray, self.traj_callback)
+        self.path = None
+
+        if(self.run_on_robot):
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+        else:
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+        rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback)
         
     def traj_callback(self, msg):
-        self.target = np.array([msg.data[0], msg.data[1]])     
-    
-    def set_target(self, target):
         self.go = True
-        self.target = target
+        self.thread_lock.acquire()
+        self.path = np.array(msg.data).reshape((-1,2))
+        self.thread_lock.release()
+    
+    '''def set_target(self, target):
+        self.go = True
+        self.target = target'''
 
     def get_P_pos(self):
         self.thread_lock.acquire()
@@ -66,8 +76,17 @@ class DriveController:
         self.p = p
         self.thread_lock.release()
 
-        k = 0.5
-        u = np.ravel((k*np.linalg.inv(M)) @ (self.target - p).reshape((2,1)))
+        if self.path is None:
+            return
+        #print("current_pos", self.p)
+        dist_to_path = np.linalg.norm(self.p[np.newaxis,:] - self.path, axis = 1)
+        #print("dist_to_path", dist_to_path)
+        path_index = int(np.minimum(np.argmin(dist_to_path) + 1, self.path.shape[0] - 1))
+        #print("path_index", path_index)
+        target = self.path[path_index]
+
+        k = 13
+        u = np.ravel((k*np.linalg.inv(M)) @ (target - p).reshape((2,1)))
 
         v = u[0]
         v = np.clip(v, -self.maxSpeed, self.maxSpeed) # clip speed

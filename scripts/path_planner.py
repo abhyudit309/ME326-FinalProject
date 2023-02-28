@@ -21,7 +21,8 @@ class PathPlanner:
         self.path = None #np.zeros((1,2))
         self.path_time = 0
         self.target = np.zeros(2)
-        self.time_between_path_points = 0.1 #s        
+
+        #self.time_between_path_points = 0.1 #s        
 
         self.obs_grid_size = 0.05 #m
         self.scale_ratio = self.occupancy.grid_size / self.obs_grid_size
@@ -29,12 +30,14 @@ class PathPlanner:
         self.obs_grid_dim = np.rint(np.array(self.occupancy.grid.shape[0:2]) * self.scale_ratio).astype(int)
         self.obs_grid = np.zeros(self.obs_grid_dim)
 
-        self.spacing = 0.3 #m
+        self.spacing = 0.35 #m
 
         r_grid = np.ceil(self.spacing/self.obs_grid_size)
         v,u = np.meshgrid(np.arange(-r_grid,r_grid+1), np.arange(-r_grid,r_grid+1), indexing='ij')
 
         self.filter = np.array(np.less_equal(v**2 + u**2, r_grid**2),np.float32)
+
+        self.pub = rospy.Publisher('path_publisher', Float32MultiArray, queue_size=10)
      
     def generate_obs_grid(self):    
         self.occupancy.thread_lock.acquire()
@@ -48,36 +51,28 @@ class PathPlanner:
         #print(unspaced_obs)
         obs_grid = cv2.filter2D(unspaced_obs, ddepth=-1, kernel=self.filter)
         self.obs_grid = np.where(obs_grid > 0, 1, 0) 
-
-        plt.imshow(self.obs_grid)
-        plt.show(block=False)
-        plt.pause(0.025)
     
     def plan(self, x_init, x_goal):
         #self.x_goal = x_goal
         self.astar = AStar(self.statespace_lo, self.statespace_hi, x_init, x_goal, self.occupancy, self.obs_grid, self.obs_grid_size)
         if not self.astar.solve():
             print("No path found !!")
+            return []
         else:
             print("Path found !!")
-            self.path = self.astar.path
+            self.path = np.array(self.astar.path  + [x_goal])
+            #print("Path:", self.path)
             self.x_goal = x_goal
             self.path_time = rospy.Time.now().to_sec()
+            return self.path
 
     def path_publisher(self):
-        self.pub = rospy.Publisher('position', Float32MultiArray, queue_size=10)
         rate = rospy.Rate(100) # 100hz
-        position = Float32MultiArray()
-        if len(self.path) <= 3:
-            print("Path too short !!")
-            position.data = self.x_goal
-            self.pub.publish(position)
-        else:
-            print(self.path)
-            for i in range(len(self.path) - 1):
-                position.data = self.path[i + 1]
-                self.pub.publish(position)
-                rate.sleep()
+        published_path = Float32MultiArray()
+        published_path.data = self.path.ravel().tolist()
+        #print("Pup Path:", published_path.data)
+        self.pub.publish(published_path)
+            
     
     def current_target(self): # NOT USED
         pass
