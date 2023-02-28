@@ -14,8 +14,6 @@ class AStar(object):
         self.x_init = self.snap_to_grid(x_init) # initial state
         self.x_goal = self.snap_to_grid(x_goal) # goal state
 
-        print("Goal on grid:", (self.occupancy.to_grid(np.array(self.x_goal)) * self.scale).astype(int))
-
         self.closed_set = set()    # the set containing the states that have been visited
         self.open_set = set()      # the set containing the states that are condidate for future expension
         self.est_cost_through = {} # 2d map of the estimated cost from start to goal passing through state
@@ -25,7 +23,7 @@ class AStar(object):
         self.open_set.add(self.x_init)
         self.cost_to_arrive[self.x_init] = 0
         self.est_cost_through[self.x_init] = self.distance(self.x_init,self.x_goal)
-
+        
         self.path = None        # the final path as a list of states
 
     def is_free(self, x):
@@ -33,15 +31,13 @@ class AStar(object):
         # OR (ii) if it is the initial state OR (iii) if it is the goal state
         if x == self.x_init or x == self.x_goal:
             return True
-        #occupancy_grid = self.occupancy.grid
         inside_map = False
         x_array = np.array(x)  # converts the state tuple x to an array
-        x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
-        #idx = np.argmax(occupancy_grid[x_grid_pt[0], x_grid_pt[1], :])
         if (x_array >= self.statespace_lo).all() and (x_array <= self.statespace_hi).all():
             inside_map = True
         else:
             return False
+        x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
         idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
         if inside_map and idx == 0:
             return True
@@ -88,8 +84,6 @@ class AStar(object):
         while current != self.x_init:
             path.append(self.came_from[current])
             current = path[-1]
-        print("Path:", path)
-        print(self.obs_grid)
         return list(reversed(path))
 
     def solve(self):
