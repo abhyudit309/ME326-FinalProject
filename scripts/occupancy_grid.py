@@ -126,7 +126,7 @@ class OccupancyGrid:
 
         plt.imshow(imgRGB)
         plt.show(block=False)
-        plt.pause(0.1)
+        plt.pause(0.025)
 
     def color_image_callback(self,color_msg):
 

@@ -59,15 +59,16 @@ class StationTracker:
         params.minDistBetweenBlobs = cube_side * np.sqrt(2) + 2
         params.filterByColor = False
         params.filterByArea = True
-        params.minArea = 0
-        params.maxArea = cube_side**2 + 4 * cube_side
+        params.minArea = cube_side**2 / 4
+        params.maxArea = cube_side**2 * 4
         params.filterByCircularity = False
         params.minCircularity = 0.4
         params.filterByConvexity = False
         #params.minConvexity = 0.8
         params.filterByInertia = False
         #params.minInertiaRatio = 0.01
-        '''print("ThresholdStep:", params.thresholdStep)
+        '''
+        print("ThresholdStep:", params.thresholdStep)
         print("MinThreshold:", params.minThreshold)
         print("MaxThreshold:", params.maxThreshold)
         print("MinRepeatability:", params.minRepeatability)
@@ -85,7 +86,8 @@ class StationTracker:
         print("MaxInertiaRatio:", params.maxInertiaRatio)
         print("FilterByConvexity:", params.filterByConvexity)
         print("MinConvexity:", params.minConvexity)
-        print("MaxConvexity:", params.maxConvexity)'''
+        print("MaxConvexity:", params.maxConvexity)
+        '''
         self.detector = cv2.SimpleBlobDetector_create(params)
 
     def count(self):

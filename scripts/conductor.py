@@ -30,7 +30,7 @@ class Conductor:
         self.replan_time = -99999999
         self.close_enough = 0.05 #m
 
-        self.spin_speed = 1 # rad/s
+        self.spin_speed = 0.5 # rad/s
         self.spin_time = 2*np.pi / self.spin_speed #s
         self.stop_time = 0.5 #s
 
