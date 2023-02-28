@@ -40,7 +40,7 @@ class OccupancyGrid:
         self.grid_size = 0.005 #m
         
         self.field_size = 4.5 #m
-        self.obs_height = 0.04 #m
+        self.obs_height = 0.03 #m
 
         grid_dim = int(self.field_size / self.grid_size)
         self.grid_center = np.rint([grid_dim / 2,grid_dim / 2])
@@ -103,11 +103,11 @@ class OccupancyGrid:
 
     def display_occupancy(self):
         red = np.array([1,0,0])
-        yellow = np.array([1,1,0])
+        yellow = np.array([0.878, 0.722, 0])
         green = np.array([0,1,0])
         blue = np.array([0,0,1])
         white = np.array([1,1,1])
-        black = np.array([0,0,0])
+        obs = np.array([0.463,0,0.769])
 
         gridEA = self.grid[..., np.newaxis]
 
@@ -118,7 +118,7 @@ class OccupancyGrid:
             + gridEA[:,:,2] * yellow
             + gridEA[:,:,3] * green
             + gridEA[:,:,4] * blue
-            + gridEA[:,:,5] * black) / np.where(count > 0, count, 1)
+            + gridEA[:,:,5] * obs) / np.where(count > 0, count, 1)
         
         '''red_ind = np.unravel_index(np.argmax(imgRGB[:,:,1]),imgRGB.shape[0:2])
         print("max red index:", red_ind)
@@ -249,8 +249,8 @@ class OccupancyGrid:
         print("max red index:", red_ind)
         print("max red:", self.grid[red_ind[0],red_ind[1],:])'''
         
-        if(self.i % 10 == 0):
-            self.display_occupancy()
+        '''if(self.i % 10 == 0):
+            self.display_occupancy()'''
 
 
 

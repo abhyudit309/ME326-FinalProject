@@ -7,12 +7,14 @@ class AStar(object):
         self.statespace_lo = statespace_lo                       # state space lower bound (e.g., [-5, -5])
         self.statespace_hi = statespace_hi                       # state space upper bound (e.g., [5, 5])
         self.occupancy = occupancy                               # occupancy grid (a DetOccupancyGrid2D object)
-        self.obs_grid = obs_grid                                 # obstacle grid
+        self.obs_grid = obs_grid.T                                 # obstacle grid
         self.resolution = resolution                             # resolution of the discretization of state space (cell/m)
         self.scale = self.occupancy.grid_size / self.resolution  # scaling factor between occupancy grid and obstacle grid
         
         self.x_init = self.snap_to_grid(x_init) # initial state
         self.x_goal = self.snap_to_grid(x_goal) # goal state
+
+        print("Goal on grid:", (self.occupancy.to_grid(np.array(self.x_goal)) * self.scale).astype(int))
 
         self.closed_set = set()    # the set containing the states that have been visited
         self.open_set = set()      # the set containing the states that are condidate for future expension
@@ -36,9 +38,11 @@ class AStar(object):
         x_array = np.array(x)  # converts the state tuple x to an array
         x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
         #idx = np.argmax(occupancy_grid[x_grid_pt[0], x_grid_pt[1], :])
-        idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
         if (x_array >= self.statespace_lo).all() and (x_array <= self.statespace_hi).all():
             inside_map = True
+        else:
+            return False
+        idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
         if inside_map and idx == 0:
             return True
         else:
@@ -84,6 +88,8 @@ class AStar(object):
         while current != self.x_init:
             path.append(self.came_from[current])
             current = path[-1]
+        print("Path:", path)
+        print(self.obs_grid)
         return list(reversed(path))
 
     def solve(self):

@@ -34,7 +34,7 @@ class DriveController:
         rospy.Subscriber("position", Float32MultiArray, self.traj_callback)
         
     def traj_callback(self, msg):
-        self.target = np.array([msg.data[0], msg.data[1]])        
+        self.target = np.array([msg.data[0], msg.data[1]])     
     
     def set_target(self, target):
         self.go = True

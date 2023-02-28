@@ -6,6 +6,7 @@ from occupancy_grid import OccupancyGrid
 from astar import AStar
 from std_msgs.msg import Float32MultiArray
 import threading
+from matplotlib import pyplot as plt
 
 
 class PathPlanner:
@@ -22,7 +23,7 @@ class PathPlanner:
         self.target = np.zeros(2)
         self.time_between_path_points = 0.1 #s        
 
-        self.obs_grid_size = 0.1 #m
+        self.obs_grid_size = 0.05 #m
         self.scale_ratio = self.occupancy.grid_size / self.obs_grid_size
 
         self.obs_grid_dim = np.rint(np.array(self.occupancy.grid.shape[0:2]) * self.scale_ratio).astype(int)
@@ -41,12 +42,16 @@ class PathPlanner:
         self.occupancy.thread_lock.release()
 
         obs_num = 32767
-        large_obs = np.array(np.where(occ_grid[:,:,0] < np.sum(occ_grid[:,:,1:6], axis = 2),obs_num,0), dtype='uint16')
+        large_obs = np.array(np.where(occ_grid[:,:,0] < np.sum(occ_grid[:,:,5:6], axis = 2),obs_num,0), dtype='uint16')
         unspaced_obs = cv2.resize(large_obs,(self.obs_grid_dim[0],self.obs_grid_dim[1]))
         #print(large_obs[550-3:550+3,400-3:400+3])
         #print(unspaced_obs)
         obs_grid = cv2.filter2D(unspaced_obs, ddepth=-1, kernel=self.filter)
         self.obs_grid = np.where(obs_grid > 0, 1, 0) 
+
+        plt.imshow(self.obs_grid)
+        plt.show(block=False)
+        plt.pause(0.025)
     
     def plan(self, x_init, x_goal):
         #self.x_goal = x_goal
@@ -68,6 +73,7 @@ class PathPlanner:
             position.data = self.x_goal
             self.pub.publish(position)
         else:
+            print(self.path)
             for i in range(len(self.path) - 1):
                 position.data = self.path[i + 1]
                 self.pub.publish(position)
