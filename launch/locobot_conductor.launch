@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+<launch>
+
+<group ns="locobot">
+  <node type="conductor.py" name="conductor" pkg="me326_locobot_example" respawn="false" output="screen" />
+</group>
+
+</launch>
