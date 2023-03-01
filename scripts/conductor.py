@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import sys
 import time
 import rospy
 import tf
@@ -29,6 +28,9 @@ class Conductor:
         self.x = 0
         self.y = 0
         
+        self.listener = tf.TransformListener()
+        self.tf_time = 0
+        
         self.occupancy_grid = OccupancyGrid(run_on_robot = run_on_robot)
         self.path_planner = PathPlanner(self.occupancy_grid)
         self.drive_controller = DriveController(run_on_robot = run_on_robot)
@@ -52,10 +54,11 @@ class Conductor:
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
         rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
-
+    
     def OdometryCallback(self, data):
         self.x = data.pose.pose.position.x
         self.y = data.pose.pose.position.y
+        self.tf_time = data.header.stamp
         self.x_init = (self.x, self.y)
     
     def state_machine(self):
@@ -69,12 +72,16 @@ class Conductor:
         elif(self.state == 1):
             self.driving_state(self.bring_block_to, self.get_block_from)
         elif(self.state == 2):
-            self.pickup(self.x_init, self.get_block_from)
+            self.grasping(self.get_block_from)
+            print("closing gripper!!")
+            #self.move_locobot_arm.close_gripper() # ISSUES with gripper!
             self.state += 1
         elif(self.state == 3):
             self.driving_state(self.get_block_from, self.bring_block_to)
         elif(self.state == 4):
-            self.dropoff(self.x_init, self.bring_block_to)
+            self.grasping(self.bring_block_to)
+            print("opening gripper!!")
+            #self.move_locobot_arm.open_gripper() # ISSUES with gripper!
             self.state = 0
         else:
             print("State number not in range:", self.state)
@@ -97,25 +104,18 @@ class Conductor:
                 self.path_planner.path_publisher()
                 self.replan_time = time
 
-    def pickup(self, robot_pose, target_pose):
-        x_pose = target_pose[0] - robot_pose[0]
-        y_pose = target_pose[1] - robot_pose[1]
-        print("going down!!", x_pose, y_pose)
-        self.move_locobot_arm.move_gripper_down_to_grasp(x_pose, y_pose)
+    def grasping(self, target_pose):
+        try:
+            (trans, rot) = self.listener.lookupTransform('locobot/base_footprint', 'locobot/odom', self.tf_time)
+            tf_matrix = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
+        except (tf.LookupException, tf.ConnectivityException):
+            pass
+        pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
+        self.orient_camera.tilt_camera(angle=-0.5)
+        print("going down!!", pose[0], pose[1])
+        self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
         self.move_locobot_arm.move_arm_down_for_camera()
-        print("closing gripper!!")
-        #self.move_locobot_arm.close_gripper() # ISSUES with gripper!
-        pass
-    
-    def dropoff(self, robot_pose, target_pose):
-        x_pose = target_pose[0] - robot_pose[0]
-        y_pose = target_pose[1] - robot_pose[1]
-        print("going down!!", x_pose, y_pose)
-        self.move_locobot_arm.move_gripper_down_to_grasp(x_pose, y_pose)
-        self.move_locobot_arm.move_arm_down_for_camera()
-        print("opening gripper!!")
-        #self.move_locobot_arm.open_gripper() # ISSUES with gripper!
-        pass
+        self.orient_camera.tilt_camera()
 
     def spin_scan(self):
         print("Spinning")
@@ -138,7 +138,7 @@ class Conductor:
 
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
-    conductor = Conductor(run_on_robot=sys.argv[1])
+    conductor = Conductor()
     conductor.stop()
     while True:
         conductor.state_machine()
