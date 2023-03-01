@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import time
 import rospy
 import tf
@@ -111,7 +112,7 @@ class Conductor:
 
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
-    conductor = Conductor()
+    conductor = Conductor(run_on_robot=sys.argv[1])
     conductor.stop()
     while True:
         conductor.state_machine()

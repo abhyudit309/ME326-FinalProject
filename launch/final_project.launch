@@ -1,8 +1,11 @@
 <?xml version="1.0" ?>
 <launch>
 
+<arg name="run_on_robot" default="true" />
+
+<!-- Launch the robot-->
 <group ns="locobot">
-  <node type="locobot_motion_example.py" name="locobot_motion_example" pkg="me326_locobot_example" respawn="false" output="screen" />
+  <node type="conductor.py" name="conductor" pkg="me326_final_project" args="$(arg run_on_robot)" respawn="false" output="screen" />
 </group>
 
 </launch>
