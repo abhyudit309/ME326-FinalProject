@@ -13,6 +13,8 @@ from geometry_msgs.msg import PointStamped
 from visualization_msgs.msg import Marker
 import threading
 
+from nav_msgs.msg import Odometry
+
 from matplotlib import pyplot as plt
 
 from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
@@ -21,7 +23,15 @@ from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 class OccupancyGrid:
     def __init__(self, run_on_robot):
         self.run_on_robot = run_on_robot
-        
+
+        if self.run_on_robot:
+            rospy.Subscriber("/vrpn_client_node/locobot_3/pose", Odometry, self.OdometryCallback)
+            self.base_frame = 'locobot/base_footprint'
+        else:
+            self.base_frame = 'locobot/odom'
+
+        self.real_world_matrix = np.identity(4)
+
         self.bridge = CvBridge()
         self.thread_lock = threading.Lock() #threading # self.thread_lock.acquire() # self.thread_lock.release()
 
@@ -207,10 +217,11 @@ class OccupancyGrid:
         points = rays * self.depth_image[..., np.newaxis]
         point4s = np.dstack((points,np.ones_like(u)))[..., np.newaxis]
         matrix4x4 = np.zeros((4,4))
-        try:
-            (trans, rot) = self.listener.lookupTransform('locobot/odom','locobot/camera_link', self.color_time)
-            #print("Translation: ", trans)
-            matrix4x4 = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
+        try:    
+            (translation, rot) = self.listener.lookupTransform(self.base_frame,'locobot/camera_link', self.color_time)
+            matrix4x4 = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
+            if self.run_on_robot:
+                matrix4x4 = self.real_world_matrix @ matrix4x4 #Apply real world pose
 
         except (tf.LookupException, tf.ConnectivityException):
             pass
@@ -271,3 +282,10 @@ class OccupancyGrid:
         resp = PixtoPointResponse()
         resp.ptCld_point = self.point_3d_cloud
         return resp
+
+    def OdometryCallback(self, data):
+        translation = data.pose.pose.position
+        rot = data.pose.pose.orientation
+        self.thread_lock.acquire()
+        self.real_world_matrix = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
+        self.thread_lock.release()

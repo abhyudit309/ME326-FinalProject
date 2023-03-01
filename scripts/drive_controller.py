@@ -19,7 +19,7 @@ class DriveController:
 
     def __init__(self, run_on_robot):
         self.run_on_robot = run_on_robot
-        
+
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
         self.L = 0.3
@@ -35,7 +35,7 @@ class DriveController:
         self.path = None
 
         if(self.run_on_robot):
-            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+            rospy.Subscriber("/vrpn_client_node/locobot_3/pose", Odometry, self.OdometryCallback)
         else:
             rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
         rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback)
