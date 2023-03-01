@@ -125,7 +125,7 @@ class OccupancyGrid:
         print("max red index:", red_ind)
         print("max red:", imgRGB[red_ind[0],red_ind[1],:])'''
 
-        plt.imshow(imgRGB)
+        plt.imshow(imgRGB, origin='lower')
         plt.show(block=False)
         plt.pause(0.001)
 
