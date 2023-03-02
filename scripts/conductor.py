@@ -12,11 +12,13 @@ from path_planner import PathPlanner
 from station_tracker import StationTracker
 from drive_controller import DriveController
 from nav_msgs.msg import Odometry
+from geometry_msgs.msg import PoseStamped
 from locobot_motion_example import OrientCamera, MoveLocobotArm
 import moveit_commander
 
 class Conductor:
     def __init__(self, run_on_robot = False):
+        self.run_on_robot = run_on_robot
         rospy.init_node("conductor")
         self.state = 0
         # State 0: Thinking
@@ -38,7 +40,8 @@ class Conductor:
         
         moveit_commander.roscpp_initialize(sys.argv)
         self.orient_camera = OrientCamera()
-        self.move_locobot_arm = MoveLocobotArm(moveit_commander)
+        print("argv:", sys.argv)
+        #self.move_locobot_arm = MoveLocobotArm(moveit_commander) # Issue here
 
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
@@ -54,11 +57,19 @@ class Conductor:
 
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
-        rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+        if(self.run_on_robot):
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+        else:
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
     
     def OdometryCallback(self, data):
-        self.x = data.pose.pose.position.x
-        self.y = data.pose.pose.position.y
+        if self.run_on_robot:
+            self.x = data.pose.position.x
+            self.y = data.pose.position.y
+
+        else:
+            self.x = data.pose.pose.position.x
+            self.y = data.pose.pose.position.y
         self.tf_time = data.header.stamp
         self.x_init = (self.x, self.y)
     
@@ -114,8 +125,8 @@ class Conductor:
         pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
         self.orient_camera.tilt_camera(angle=-0.5)
         print("going down!!", pose[0], pose[1])
-        self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
-        self.move_locobot_arm.move_arm_down_for_camera()
+        #self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
+        #self.move_locobot_arm.move_arm_down_for_camera()
         self.orient_camera.tilt_camera()
 
     def spin_scan(self):
@@ -139,6 +150,7 @@ class Conductor:
 
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
+    print("init")
     arg = False
     if (sys.argv[1] == "true"):
         arg = True

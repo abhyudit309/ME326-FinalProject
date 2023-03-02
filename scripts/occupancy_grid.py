@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false use_nav:=true dof:=6
+
 
 import time
 import rospy
@@ -14,7 +16,7 @@ from visualization_msgs.msg import Marker
 import threading
 
 from nav_msgs.msg import Odometry
-
+from geometry_msgs.msg import PoseStamped
 from matplotlib import pyplot as plt
 
 from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
@@ -25,7 +27,7 @@ class OccupancyGrid:
         self.run_on_robot = run_on_robot
 
         if self.run_on_robot:
-            rospy.Subscriber("/vrpn_client_node/locobot_3/pose", Odometry, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
             self.base_frame = 'locobot/base_footprint'
         else:
             self.base_frame = 'locobot/odom'
@@ -284,8 +286,14 @@ class OccupancyGrid:
         return resp
 
     def OdometryCallback(self, data):
-        translation = data.pose.pose.position
-        rot = data.pose.pose.orientation
+        if self.run_on_robot:
+            translation = data.pose.position
+            translation = [translation.x, translation.y, translation.z]
+            rot = data.pose.orientation
+            rot = [rot.x, rot.y, rot.z, rot.w]
+        else: 
+            translation = data.pose.pose.position
+            rot = data.pose.pose.orientation
         self.thread_lock.acquire()
         self.real_world_matrix = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
         self.thread_lock.release()

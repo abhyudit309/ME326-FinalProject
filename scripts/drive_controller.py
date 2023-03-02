@@ -11,7 +11,7 @@ from scipy import linalg
 from occupancy_grid import OccupancyGrid
 from path_planner import PathPlanner
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 from std_msgs.msg import Float32MultiArray
 import threading
 
@@ -35,7 +35,7 @@ class DriveController:
         self.path = None
 
         if(self.run_on_robot):
-            rospy.Subscriber("/vrpn_client_node/locobot_3/pose", Odometry, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
         else:
             rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
         rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback)
@@ -57,19 +57,36 @@ class DriveController:
         return p
 
     def OdometryCallback(self, data):
-        qw = data.pose.pose.orientation.w
-        qx = data.pose.pose.orientation.x
-        qy = data.pose.pose.orientation.y
-        qz = data.pose.pose.orientation.z
-        R11 = qw**2 + qx**2 - qy**2 -qz**2
-        R12 = 2*qx*qz - 2*qw*qz
-        R21 = 2*qx*qz + 2*qw*qz
-        R22 = qw**2 - qx**2 + qy**2 -qz**2
+        if self.run_on_robot:
+            qw = data.pose.orientation.w
+            qx = data.pose.orientation.x
+            qy = data.pose.orientation.y
+            qz = data.pose.orientation.z
+            R11 = qw**2 + qx**2 - qy**2 -qz**2
+            R12 = 2*qx*qz - 2*qw*qz
+            R21 = 2*qx*qz + 2*qw*qz
+            R22 = qw**2 - qx**2 + qy**2 -qz**2
 
-        M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
+            M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
 
-        px = data.pose.pose.position.x + self.L*R11
-        py = data.pose.pose.position.y + self.L*R21
+            px = data.pose.position.x + self.L*R11
+            py = data.pose.position.y + self.L*R21
+        
+        else:   
+            qw = data.pose.pose.orientation.w
+            qx = data.pose.pose.orientation.x
+            qy = data.pose.pose.orientation.y
+            qz = data.pose.pose.orientation.z
+            R11 = qw**2 + qx**2 - qy**2 -qz**2
+            R12 = 2*qx*qz - 2*qw*qz
+            R21 = 2*qx*qz + 2*qw*qz
+            R22 = qw**2 - qx**2 + qy**2 -qz**2
+
+            M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
+
+            px = data.pose.pose.position.x + self.L*R11
+            py = data.pose.pose.position.y + self.L*R21
+        
         p = np.array([px,py])
 
         self.thread_lock.acquire()
