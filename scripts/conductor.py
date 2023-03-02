@@ -140,7 +140,7 @@ class Conductor:
 if __name__ == "__main__":
     np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
     arg = False
-    if (arg == "true"):
+    if (sys.argv[1] == "true"):
         arg = True
     conductor = Conductor(run_on_robot=arg)
     conductor.stop()
