@@ -22,7 +22,7 @@ class DriveController:
 
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
-        self.L = 0.3
+        self.L = 0.1
         self.path = np.zeros((1,2))
         self.p = np.zeros(2)
         self.thread_lock = threading.Lock()
