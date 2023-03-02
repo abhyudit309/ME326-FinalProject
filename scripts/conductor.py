@@ -32,7 +32,7 @@ class Conductor:
 
         self.replan_every = 1.5 #s
         self.replan_time = -99999999
-        self.close_enough = 0.01 #m
+        self.close_enough = 0.5 #m
 
         self.display_every = 0.5 #s
         self.display_time = -99999999

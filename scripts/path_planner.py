@@ -30,7 +30,7 @@ class PathPlanner:
         self.obs_grid_dim = np.rint(np.array(self.occupancy.grid.shape[0:2]) * self.scale_ratio).astype(int)
         self.obs_grid = np.zeros(self.obs_grid_dim)
 
-        self.spacing = 0.35 #m
+        self.spacing = 0.25 #m
 
         r_grid = np.ceil(self.spacing/self.obs_grid_size)
         v,u = np.meshgrid(np.arange(-r_grid,r_grid+1), np.arange(-r_grid,r_grid+1), indexing='ij')
@@ -45,22 +45,30 @@ class PathPlanner:
         self.occupancy.thread_lock.release()
 
         obs_num = 32767
-        large_obs = np.array(np.where(occ_grid[:,:,0] < np.sum(occ_grid[:,:,5:6], axis = 2),obs_num,0), dtype='uint16')
+        large_obs = np.array(np.where(occ_grid[:,:,0] < occ_grid[:,:,5],obs_num,0), dtype='uint16')
+        large_cubes = np.array(np.where(occ_grid[:,:,0] < np.sum(occ_grid[:,:,1:5], axis = 2),obs_num,0), dtype='uint16')
         unspaced_obs = cv2.resize(large_obs,(self.obs_grid_dim[0],self.obs_grid_dim[1]))
-        #print(large_obs[550-3:550+3,400-3:400+3])
-        #print(unspaced_obs)
+        unspaced_cubes = cv2.resize(large_cubes,(self.obs_grid_dim[0],self.obs_grid_dim[1]))
         obs_grid = cv2.filter2D(unspaced_obs, ddepth=-1, kernel=self.filter)
-        self.obs_grid = np.where(obs_grid > 0, 1, 0) 
+        cubes_grid = cv2.filter2D(unspaced_cubes, ddepth=-1, kernel=self.filter)
+        
+
+        self.obs_grid = np.where(obs_grid > 0, 10, 0) + np.where(cubes_grid > 0, 1, 0)
+
+        '''plt.imshow(self.obs_grid, origin='lower')
+        plt.show(block=False)
+        plt.pause(0.001)'''
+
     
     def plan(self, x_init, x_goal):
         #self.x_goal = x_goal
-        self.astar = AStar(self.statespace_lo, self.statespace_hi, x_init, x_goal, self.occupancy, self.obs_grid, self.obs_grid_size)
+        self.astar = AStar(self.statespace_lo, self.statespace_hi, x_init, x_goal, self.occupancy, self.obs_grid, self.obs_grid_size, self.spacing)
         if not self.astar.solve():
             print("No path found !!")
             return []
         else:
             print("Path found !!")
-            self.path = np.array(self.astar.path  + [x_goal])
+            self.path = np.array(self.astar.path) #  + [x_goal])
             #print("Path:", self.path)
             self.x_goal = x_goal
             self.path_time = rospy.Time.now().to_sec()

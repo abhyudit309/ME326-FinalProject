@@ -3,7 +3,7 @@ from occupancy_grid import OccupancyGrid
 
 class AStar(object):
 
-    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, obs_grid, resolution)->None:
+    def __init__(self, statespace_lo, statespace_hi, x_init, x_goal, occupancy, obs_grid, resolution, obs_spacing)->None:
         self.statespace_lo = statespace_lo                       # state space lower bound (e.g., [-5, -5])
         self.statespace_hi = statespace_hi                       # state space upper bound (e.g., [5, 5])
         self.occupancy = occupancy                               # occupancy grid (a DetOccupancyGrid2D object)
@@ -11,6 +11,10 @@ class AStar(object):
         self.resolution = resolution                             # resolution of the discretization of state space (cell/m)
         self.scale = self.occupancy.grid_size / self.resolution  # scaling factor between occupancy grid and obstacle grid
         
+        self.obs_spacing = obs_spacing
+
+        self.arm_reach = 0.4
+
         self.x_init = self.snap_to_grid(x_init) # initial state
         self.x_goal = self.snap_to_grid(x_goal) # goal state
 
@@ -31,18 +35,26 @@ class AStar(object):
         # OR (ii) if it is the initial state OR (iii) if it is the goal state
         if x == self.x_init or x == self.x_goal:
             return True
-        inside_map = False
         x_array = np.array(x)  # converts the state tuple x to an array
-        if (x_array >= self.statespace_lo).all() and (x_array <= self.statespace_hi).all():
-            inside_map = True
-        else:
+
+        if not((x_array >= self.statespace_lo).all() and (x_array <= self.statespace_hi).all()):
             return False
+        
         x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
         idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
-        if inside_map and idx == 0:
+        
+        if idx < 5:
             return True
         else:
             return False
+
+    def obs_cost(self, x):
+        x_array = np.array(x)  # converts the state tuple x to an array
+        if np.linalg.norm(x_array - self.x_goal) <= self.obs_spacing:
+            return 0
+        x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
+        idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
+        return idx
 
     def distance(self, x1, x2):  
         return np.linalg.norm(np.array(x1) - np.array(x2))
@@ -89,7 +101,8 @@ class AStar(object):
     def solve(self):
         while len(self.open_set) > 0:
             x_current = self.find_best_est_cost_through()
-            if x_current == self.x_goal:
+            if np.linalg.norm(np.array(x_current) - np.array(self.x_goal)) <= self.arm_reach:
+                self.x_goal = x_current
                 self.path = self.reconstruct_path()
                 return True
             self.open_set.remove(x_current)
@@ -98,6 +111,7 @@ class AStar(object):
                 if x_neigh in self.closed_set:
                     continue
                 tentative_cost_to_arrive = self.cost_to_arrive[x_current] + self.distance(x_current, x_neigh)
+                tentative_cost_to_arrive += self.obs_cost(x_neigh)
                 if x_neigh not in self.open_set:
                     self.open_set.add(x_neigh)
                 elif tentative_cost_to_arrive > self.cost_to_arrive[x_neigh]:
