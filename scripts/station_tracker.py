@@ -12,6 +12,7 @@ from drive_controller import DriveController
 
 class StationTracker:
     def __init__(self, occupancy_grid, drive_controller):
+        print("Station Tracker Starting")
         self.occupancy_grid = occupancy_grid
         self.drive_controller = drive_controller
 

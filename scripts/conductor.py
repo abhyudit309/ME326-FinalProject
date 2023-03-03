@@ -18,6 +18,7 @@ import moveit_commander
 
 class Conductor:
     def __init__(self, run_on_robot = False):
+        print("Conductor Starting")
         self.run_on_robot = run_on_robot
         rospy.init_node("conductor")
         self.state = 0
@@ -149,8 +150,7 @@ class Conductor:
             self.display_time = time
 
 if __name__ == "__main__":
-    np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
-    print("init")
+    np.set_printoptions(precision=5, edgeitems=5, linewidth=250)
     arg = False
     if (sys.argv[1] == "true"):
         arg = True
