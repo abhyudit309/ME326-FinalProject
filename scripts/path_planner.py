@@ -12,6 +12,7 @@ from matplotlib import pyplot as plt
 class PathPlanner:
 
     def __init__(self, occupancy):
+        print("Path Planner Starting")
         self.occupancy = occupancy
         occupancy_grid = self.occupancy.grid
         dim = occupancy_grid.shape[0]      

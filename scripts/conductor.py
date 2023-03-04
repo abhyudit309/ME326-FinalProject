@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
+#roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
+
 import time
 import rospy
 import tf
@@ -18,6 +22,7 @@ import moveit_commander
 
 class Conductor:
     def __init__(self, run_on_robot = False):
+        print("Conductor Starting")
         self.run_on_robot = run_on_robot
         rospy.init_node("conductor")
         self.state = 0
@@ -38,7 +43,7 @@ class Conductor:
         self.drive_controller = DriveController(run_on_robot = run_on_robot)
         self.station_tracker = StationTracker(self.occupancy_grid, self.drive_controller)
         
-        moveit_commander.roscpp_initialize(sys.argv)
+        #moveit_commander.roscpp_initialize(sys.argv)
         self.orient_camera = OrientCamera()
         print("argv:", sys.argv)
         #self.move_locobot_arm = MoveLocobotArm(moveit_commander) # Issue here
@@ -149,12 +154,19 @@ class Conductor:
             self.display_time = time
 
 if __name__ == "__main__":
-    np.set_printoptions(precision=5, edgeitems=30, linewidth=250)
-    print("init")
+    np.set_printoptions(precision=5, edgeitems=5, linewidth=250)
     arg = False
     if (sys.argv[1] == "true"):
         arg = True
     conductor = Conductor(run_on_robot=arg)
     conductor.stop()
+    if conductor.run_on_robot:
+        #conductor.move_locobot_arm.move_arm_down_for_camera()
+        conductor.orient_camera.tilt_camera()
     while True:
-        conductor.state_machine()
+        try:
+            conductor.state_machine()
+        except KeyboardInterupt:
+            print("Shutting down")
+            break
+            

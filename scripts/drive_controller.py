@@ -11,13 +11,14 @@ from scipy import linalg
 from occupancy_grid import OccupancyGrid
 from path_planner import PathPlanner
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import Twist, PoseStamped
+from geometry_msgs.msg import Twist, PoseStamped, Vector3
 from std_msgs.msg import Float32MultiArray
 import threading
 
 class DriveController:
 
     def __init__(self, run_on_robot):
+        print("Drive Controller Starting")
         self.run_on_robot = run_on_robot
 
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
@@ -58,36 +59,30 @@ class DriveController:
 
     def OdometryCallback(self, data):
         if self.run_on_robot:
-            qw = data.pose.orientation.w
-            qx = data.pose.orientation.x
-            qy = data.pose.orientation.y
-            qz = data.pose.orientation.z
-            R11 = qw**2 + qx**2 - qy**2 -qz**2
-            R12 = 2*qx*qz - 2*qw*qz
-            R21 = 2*qx*qz + 2*qw*qz
-            R22 = qw**2 - qx**2 + qy**2 -qz**2
-
-            M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
-
-            px = data.pose.position.x + self.L*R11
-            py = data.pose.position.y + self.L*R21
+            orientation = data.pose.orientation
+            position = data.pose.position
         
         else:   
-            qw = data.pose.pose.orientation.w
-            qx = data.pose.pose.orientation.x
-            qy = data.pose.pose.orientation.y
-            qz = data.pose.pose.orientation.z
-            R11 = qw**2 + qx**2 - qy**2 -qz**2
-            R12 = 2*qx*qz - 2*qw*qz
-            R21 = 2*qx*qz + 2*qw*qz
-            R22 = qw**2 - qx**2 + qy**2 -qz**2
-
-            M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
-
-            px = data.pose.pose.position.x + self.L*R11
-            py = data.pose.pose.position.y + self.L*R21
+            orientation = data.pose.pose.orientation
+            position = data.pose.pose.position
         
+        qw = orientation.w
+        qx = orientation.x
+        qy = orientation.y
+        qz = orientation.z
+        R11 = qw**2 + qx**2 - qy**2 -qz**2
+        R12 = 2*qx*qz - 2*qw*qz
+        R21 = 2*qx*qz + 2*qw*qz
+        R22 = qw**2 - qx**2 + qy**2 -qz**2
+
+        M = np.matrix([[R11,self.L*R12],[R21,self.L*R22]])
+
+        px = position.x + self.L*R11
+        py = position.y + self.L*R21
         p = np.array([px,py])
+
+        #print("Drive Controller Recieved Robot Position:\n", position)
+        #print("Drive Controller Recieved Robot Orientation:\n", orientation)
 
         self.thread_lock.acquire()
         self.p = p
@@ -110,16 +105,18 @@ class DriveController:
         w = u[1]
         w = np.clip(w, -self.maxRotation, self.maxRotation) # clip rotation
         control_msg = Twist()
-        control_msg.linear.x = float(v) #forward velocity
-        control_msg.angular.z = float(w) #angular velocity
+        control_msg.linear = Vector3(x=v) #forward velocity
+        control_msg.angular = Vector3(z=w) #angular velocity
 
         #now publish the control output:
         if(self.go):
-            self.mobile_base_vel_publisher.publish(control_msg)     
+            self.mobile_base_vel_publisher.publish(control_msg)
+            #print("Drive Controller Publishing:\n", control_msg)     
             
     def manual(self, v, w):
         self.go = False
         control_msg = Twist()
         control_msg.linear.x = float(v) #forward velocity
         control_msg.angular.z = float(w) #angular velocity
-        self.mobile_base_vel_publisher.publish(control_msg)   
+        self.mobile_base_vel_publisher.publish(control_msg)
+        #print("Drive Controller Publishing:\n", control_msg)      

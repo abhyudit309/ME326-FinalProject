@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false use_nav:=true dof:=6
 
 
 import time
@@ -24,6 +23,7 @@ from me326_locobot_example.srv import PixtoPoint, PixtoPointResponse
 
 class OccupancyGrid:
     def __init__(self, run_on_robot):
+        print("Occupancy Grid Starting")
         self.run_on_robot = run_on_robot
 
         if self.run_on_robot:
@@ -39,7 +39,12 @@ class OccupancyGrid:
 
         #Set the image topics from param server: http://wiki.ros.org/rospy/Overview/Parameter%20Server 
         self.color_image_topic  = rospy.get_param('pt_srv_color_img_topic', '/locobot/camera/color/image_raw')
+        if self.run_on_robot:
+            self.depth_d_size = np.uint16
+        else:
+            self.depth_d_size = np.float32
         self.depth_image_topic = rospy.get_param('pt_srv_depth_img_topic', '/locobot/camera/aligned_depth_to_color/image_raw')
+
         self.depth_img_camera_info = rospy.get_param('pt_srv_depth_img_cam_info_topic', '/locobot/camera/aligned_depth_to_color/camera_info')
     
         self.image_color_filt_pub = rospy.Publisher("/locobot/camera/block_color_filt_img",Image,queue_size=1,latch=True)
@@ -144,7 +149,10 @@ class OccupancyGrid:
     def color_image_callback(self,color_msg):
 
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
-        
+        print("Occupancy Grid Recieved Color image:", color_img.shape)#, 
+            #"\n Red \n", color_img[:,:,0],
+            #"\n Green \n", color_img[:,:,1],
+            #"\n Blue \n", color_img[:,:,2])
         
         hsv = cv2.cvtColor(color_img, cv2.COLOR_RGB2HSV)
 
@@ -195,8 +203,10 @@ class OccupancyGrid:
 
     def depth_callback(self, depth_msg):
         # convert depth image message to a numpy array
-
-        depth_image = np.frombuffer(depth_msg.data, dtype=np.float32).reshape(depth_msg.height, depth_msg.width)
+        depth_image = np.frombuffer(depth_msg.data, dtype=self.depth_d_size).reshape(depth_msg.height, depth_msg.width)
+        if self.run_on_robot:
+            depth_image = depth_image.astype(np.float32) / 1000
+        print("Occupancy Grid Recieved Depth image:", depth_image.shape, "\n", depth_image)
 
         self.thread_lock.acquire()
         self.depth_image = depth_image
@@ -204,8 +214,10 @@ class OccupancyGrid:
 
 
     def scan(self):
+        #print("scanning", self.colors, self.depth_image)
         if (self.colors is None or self.depth_image is None):
             return; #both cameras have not beet read yet
+        #print("pass if")
 
         v,u = np.meshgrid(np.arange(self.colors.shape[0]), np.arange(self.colors.shape[1]), indexing='ij')
         K = self.camera_model.intrinsicMatrix()
@@ -227,7 +239,8 @@ class OccupancyGrid:
 
         except (tf.LookupException, tf.ConnectivityException):
             pass
-        #print(matrix4x4)
+        
+        print("Camera Pose Matrix 4x4: \n", np.around(matrix4x4, 2))
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
         worldPoints = worldPoints[..., [1,0,2]] #swap x,y
 
@@ -277,6 +290,7 @@ class OccupancyGrid:
         # create a camera model from the camera info
         self.camera_model = PinholeCameraModel()
         self.camera_model.fromCameraInfo(info_msg)
+        print("Occupancy Grid Recieved Camera Info:\n", self.camera_model)
 
     def service_callback(self,req):
         #this function takes in a requested topic for the image, and returns pixel point
@@ -297,3 +311,5 @@ class OccupancyGrid:
         self.thread_lock.acquire()
         self.real_world_matrix = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
         self.thread_lock.release()
+        #print("Occupancy Grid Recieved Robot Position:\n", translation)
+        #print("Occupancy Grid Recieved Robot Orientation:\n", rot)
