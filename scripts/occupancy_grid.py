@@ -149,7 +149,7 @@ class OccupancyGrid:
     def color_image_callback(self,color_msg):
 
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
-        print("Occupancy Grid Recieved Color image:", color_img.shape)#, 
+        #print("Occupancy Grid Recieved Color image:", color_img.shape), 
             #"\n Red \n", color_img[:,:,0],
             #"\n Green \n", color_img[:,:,1],
             #"\n Blue \n", color_img[:,:,2])
@@ -206,7 +206,6 @@ class OccupancyGrid:
         depth_image = np.frombuffer(depth_msg.data, dtype=self.depth_d_size).reshape(depth_msg.height, depth_msg.width)
         if self.run_on_robot:
             depth_image = depth_image.astype(np.float32) / 1000
-        print("Occupancy Grid Recieved Depth image:", depth_image.shape, "\n", depth_image)
 
         self.thread_lock.acquire()
         self.depth_image = depth_image
@@ -313,3 +312,4 @@ class OccupancyGrid:
         self.thread_lock.release()
         #print("Occupancy Grid Recieved Robot Position:\n", translation)
         #print("Occupancy Grid Recieved Robot Orientation:\n", rot)
+
