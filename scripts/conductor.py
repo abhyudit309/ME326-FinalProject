@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
+#roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_camera:=true use_rviz:=false align_depth:=true
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false use_moveit_rviz:=false dof:=6
 
+#Don't use the commands below
 #roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
 #roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
 
@@ -43,10 +46,10 @@ class Conductor:
         self.drive_controller = DriveController(run_on_robot = run_on_robot)
         self.station_tracker = StationTracker(self.occupancy_grid, self.drive_controller)
         
-        #moveit_commander.roscpp_initialize(sys.argv)
+        moveit_commander.roscpp_initialize(sys.argv)
         self.orient_camera = OrientCamera()
         print("argv:", sys.argv)
-        #self.move_locobot_arm = MoveLocobotArm(moveit_commander) # Issue here
+        self.move_locobot_arm = MoveLocobotArm(moveit_commander) # Issue here
 
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
@@ -91,14 +94,14 @@ class Conductor:
         elif(self.state == 2):
             self.grasping(self.get_block_from)
             print("closing gripper!!")
-            #self.move_locobot_arm.close_gripper() # ISSUES with gripper!
+            self.move_locobot_arm.close_gripper() # ISSUES with gripper!
             self.state += 1
         elif(self.state == 3):
             self.driving_state(self.get_block_from, self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
             print("opening gripper!!")
-            #self.move_locobot_arm.open_gripper() # ISSUES with gripper!
+            self.move_locobot_arm.open_gripper() # ISSUES with gripper!
             self.state = 0
         else:
             print("State number not in range:", self.state)
@@ -116,6 +119,10 @@ class Conductor:
         else:
             time = rospy.Time.now().to_sec()
             if (time - self.replan_time > self.replan_every):
+                if self.state == 1:
+                    self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
+                    start = self.bring_block_to
+                    target = self.get_block_from
                 self.path_planner.generate_obs_grid()       
                 self.path_planner.plan(self.x_init, target)
                 self.path_planner.path_publisher()
@@ -130,8 +137,8 @@ class Conductor:
         pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
         self.orient_camera.tilt_camera(angle=-0.5)
         print("going down!!", pose[0], pose[1])
-        #self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
-        #self.move_locobot_arm.move_arm_down_for_camera()
+        self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
+        self.move_locobot_arm.move_arm_down_for_camera()
         self.orient_camera.tilt_camera()
 
     def spin_scan(self):
@@ -161,7 +168,7 @@ if __name__ == "__main__":
     conductor = Conductor(run_on_robot=arg)
     conductor.stop()
     if conductor.run_on_robot:
-        #conductor.move_locobot_arm.move_arm_down_for_camera()
+        conductor.move_locobot_arm.move_arm_down_for_camera()
         conductor.orient_camera.tilt_camera()
     while True:
         try:

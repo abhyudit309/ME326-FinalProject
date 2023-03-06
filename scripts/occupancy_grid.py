@@ -39,10 +39,10 @@ class OccupancyGrid:
 
         #Set the image topics from param server: http://wiki.ros.org/rospy/Overview/Parameter%20Server 
         self.color_image_topic  = rospy.get_param('pt_srv_color_img_topic', '/locobot/camera/color/image_raw')
-        if self.run_on_robot:
+        '''if self.run_on_robot:
             self.depth_d_size = np.uint16
         else:
-            self.depth_d_size = np.float32
+            self.depth_d_size = np.float32'''
         self.depth_image_topic = rospy.get_param('pt_srv_depth_img_topic', '/locobot/camera/aligned_depth_to_color/image_raw')
 
         self.depth_img_camera_info = rospy.get_param('pt_srv_depth_img_cam_info_topic', '/locobot/camera/aligned_depth_to_color/camera_info')
@@ -203,9 +203,20 @@ class OccupancyGrid:
 
     def depth_callback(self, depth_msg):
         # convert depth image message to a numpy array
-        depth_image = np.frombuffer(depth_msg.data, dtype=self.depth_d_size).reshape(depth_msg.height, depth_msg.width)
-        if self.run_on_robot:
-            depth_image = depth_image.astype(np.float32) / 1000
+        try:
+            depth_image_cv2 = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+        except CvBridgeError as e:
+            print(e)
+        depth_image = np.array(depth_image_cv2, dtype=np.float32)
+        '''if self.run_on_robot:
+            try:
+                depth_image_cv2 = cv_bridge.imgmsg_to_cv2(depth_msg, deside_encoding="passthrough")
+            except CvBridgeError, e:
+                print e
+            depth_image = np.array(depth_image, dtype=np.float32)
+            #depth_image = depth_image.astype(np.float32) / 1000
+        else:
+            depth_image = np.frombuffer(np.float32, dtype=self.depth_d_size).reshape(depth_msg.height, depth_msg.width)'''
 
         self.thread_lock.acquire()
         self.depth_image = depth_image
@@ -239,7 +250,7 @@ class OccupancyGrid:
         except (tf.LookupException, tf.ConnectivityException):
             pass
         
-        print("Camera Pose Matrix 4x4: \n", np.around(matrix4x4, 2))
+        #print("Camera Pose Matrix 4x4: \n", np.around(matrix4x4, 2))
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
         worldPoints = worldPoints[..., [1,0,2]] #swap x,y
 
@@ -289,7 +300,7 @@ class OccupancyGrid:
         # create a camera model from the camera info
         self.camera_model = PinholeCameraModel()
         self.camera_model.fromCameraInfo(info_msg)
-        print("Occupancy Grid Recieved Camera Info:\n", self.camera_model)
+        #print("Occupancy Grid Recieved Camera Info:\n", self.camera_model)
 
     def service_callback(self,req):
         #this function takes in a requested topic for the image, and returns pixel point
