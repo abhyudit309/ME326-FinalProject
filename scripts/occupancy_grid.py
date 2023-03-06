@@ -67,16 +67,7 @@ class OccupancyGrid:
         self.recency_bias = 0.3
         self.i = 0
 
-        '''
-        self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
-        self.camera_cube_locator_marker1 = rospy.Publisher("/locobot/camera_cube_locator1",Marker, queue_size=1)
-        self.camera_cube_locator_marker2 = rospy.Publisher("/locobot/camera_cube_locator2",Marker, queue_size=1)
-
-        
-        self.point = np.zeros(3)
-        self.point1 = np.zeros(3)
-        self.point2 = np.zeros(3)
-        '''
+        self.do_scan = True
        
         self.info_sub = rospy.Subscriber(self.depth_img_camera_info, CameraInfo, self.info_callback, queue_size=1)
         
@@ -147,7 +138,8 @@ class OccupancyGrid:
         plt.pause(0.001)
 
     def color_image_callback(self,color_msg):
-
+        if not self.do_scan:
+            return
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
         #print("Occupancy Grid Recieved Color image:", color_img.shape), 
             #"\n Red \n", color_img[:,:,0],

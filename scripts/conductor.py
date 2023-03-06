@@ -135,11 +135,13 @@ class Conductor:
         except (tf.LookupException, tf.ConnectivityException):
             pass
         pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
-        self.orient_camera.tilt_camera(angle=-0.5)
+        self.occupancy_grid.do_scan = False
+        #self.orient_camera.tilt_camera(angle=-0.5)
         print("going down!!", pose[0], pose[1])
         self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
         self.move_locobot_arm.move_arm_down_for_camera()
-        self.orient_camera.tilt_camera()
+        #self.orient_camera.tilt_camera()
+        self.occupancy_grid.do_scan = True
 
     def spin_scan(self):
         print("Spinning")
@@ -173,7 +175,7 @@ if __name__ == "__main__":
     while True:
         try:
             conductor.state_machine()
-        except KeyboardInterupt:
+        except:
             print("Shutting down")
             break
             
