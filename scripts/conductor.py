@@ -197,8 +197,4 @@ if __name__ == "__main__":
         conductor.move_locobot_arm.move_arm_down_for_camera()
         conductor.orient_camera.tilt_camera()
     while True:
-        try:
-            conductor.state_machine()
-        except:
-            print("Shutting down")
-            break
+        conductor.state_machine()
