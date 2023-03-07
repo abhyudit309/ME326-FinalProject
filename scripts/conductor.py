@@ -44,9 +44,9 @@ class Conductor:
         self.tf_time = 0
         
         self.occupancy_grid = OccupancyGrid(run_on_robot = run_on_robot)
-        self.path_planner = PathPlanner(self.occupancy_grid)
         self.drive_controller = DriveController(run_on_robot = run_on_robot)
         self.station_tracker = StationTracker(self.occupancy_grid, self.drive_controller)
+        self.path_planner = PathPlanner(self.occupancy_grid, self.station_tracker)
         
         moveit_commander.roscpp_initialize(sys.argv)
         self.orient_camera = OrientCamera()
@@ -56,7 +56,7 @@ class Conductor:
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
 
-        self.close_enough = 0.5 #m
+        self.close_enough = 0.35 #m
 
         self.display_every = 0.5 #s
         self.display_time = -99999999
@@ -92,12 +92,12 @@ class Conductor:
             if not(self.get_block_from is None):
                 self.state += 1
         elif(self.state == 1):
-            self.driving_state(self.bring_block_to, self.get_block_from)
+            self.driving_state(self.get_block_from)
         elif(self.state == 2):
             self.grasping(self.get_block_from)
             self.state += 1
         elif(self.state == 3):
-            self.driving_state(self.get_block_from, self.bring_block_to)
+            self.driving_state(self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
             self.state = 0
@@ -108,7 +108,7 @@ class Conductor:
             print("Swapping to state:", self.state)
         self.display_map()
 
-    def driving_state(self, start, target):
+    def driving_state(self, target):
         pos = self.drive_controller.get_P_pos()
         if (np.linalg.norm(pos-target) < self.close_enough):
             self.drive_controller.manual(0, 0)
@@ -117,12 +117,15 @@ class Conductor:
         else:
             time = rospy.Time.now().to_sec()
             if (time - self.replan_time > self.replan_every):
-            ### Do we need this ? ###
+                start = pos
+                ### Do we need this ? ###
                 if self.state == 1:
-                    self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
-                    start = self.bring_block_to
-                    target = self.get_block_from
-            ### ---------------- ###
+                    temp_block_from, temp_block_to = self.station_tracker.get_next_move()
+                    if not(temp_block_from is None):
+                        self.get_block_from = temp_block_from
+                        self.bring_block_to = temp_block_to
+                        target = temp_block_from
+                ### ---------------- ###
                 self.path_planner.generate_obs_grid()       
                 self.path_planner.plan(self.x_init, target)
                 self.path_planner.path_publisher()

@@ -31,12 +31,30 @@ class StationTracker:
         [1,0,2,0]]) #Blue
 
         choice_permutations = np.array([
-        [0,1,2,3],
-        [2,0,1,3],
-        [1,2,0,3],
-        [0,2,1,3],
-        [1,0,2,3],
-        [2,1,0,3]])
+            [0, 1, 2, 3],
+            [0, 1, 3, 2],
+            [0, 2, 1, 3],
+            [0, 2, 3, 1],
+            [0, 3, 1, 2],
+            [0, 3, 2, 1],
+            [1, 0, 2, 3],
+            [1, 0, 3, 2],
+            [1, 2, 0, 3],
+            [1, 2, 3, 0],
+            [1, 3, 0, 2],
+            [1, 3, 2, 0],
+            [2, 0, 1, 3],
+            [2, 0, 3, 1],
+            [2, 1, 0, 3],
+            [2, 1, 3, 0],
+            [2, 3, 0, 1],
+            [2, 3, 1, 0],
+            [3, 0, 1, 2],
+            [3, 0, 2, 1],
+            [3, 1, 0, 2],
+            [3, 1, 2, 0],
+            [3, 2, 0, 1],
+            [3, 2, 1, 0]])
 
         self.oracle_choice = np.zeros((choice_permutations.shape[0],self.oracle.shape[0],self.oracle.shape[1]))
         for i in range(self.oracle_choice.shape[0]):
@@ -185,7 +203,10 @@ class StationTracker:
         
         best_cube_pos = self.moveable_blocks[best_cube_num, 0:2]
         best_cube_color = self.color_names[int(self.moveable_blocks[best_cube_num, 2])]
-        dest_pos = self.station_locations[best_destination_station]
+        if best_destination_station != (self.s_num + 1):
+            dest_pos = self.station_locations[best_destination_station]
+        else:
+            dest_pos = no.array([0,0])
 
         print("Bringing",best_cube_color, "cube",best_cube_pos.ravel(),"to station @",dest_pos.ravel())
         

@@ -11,9 +11,10 @@ from matplotlib import pyplot as plt
 
 class PathPlanner:
 
-    def __init__(self, occupancy):
+    def __init__(self, occupancy, station_tracker):
         print("Path Planner Starting")
         self.occupancy = occupancy
+        self.station_tracker = station_tracker
         occupancy_grid = self.occupancy.grid
         dim = occupancy_grid.shape[0]      
         self.statespace_hi = self.occupancy.to_world(np.array([dim, dim]))
@@ -47,6 +48,9 @@ class PathPlanner:
 
         obs_num = 32767
         large_obs = np.array(np.where(occ_grid[:,:,0] < occ_grid[:,:,5],obs_num,0), dtype='uint16')
+        stations = self.occupancy.to_grid(self.station_tracker.station_locations)
+        #print("stations", stations)
+        large_obs[stations] = True
         large_cubes = np.array(np.where(occ_grid[:,:,0] < np.sum(occ_grid[:,:,1:5], axis = 2),obs_num,0), dtype='uint16')
         unspaced_obs = cv2.resize(large_obs,(self.obs_grid_dim[0],self.obs_grid_dim[1]))
         unspaced_cubes = cv2.resize(large_cubes,(self.obs_grid_dim[0],self.obs_grid_dim[1]))

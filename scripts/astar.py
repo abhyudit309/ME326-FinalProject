@@ -13,7 +13,7 @@ class AStar(object):
         
         self.obs_spacing = obs_spacing
 
-        self.arm_reach = 0.4
+        self.arm_reach = 0.3
 
         self.x_init = self.snap_to_grid(x_init) # initial state
         self.x_goal = self.snap_to_grid(x_goal) # goal state
@@ -43,10 +43,13 @@ class AStar(object):
         x_grid_pt = (self.occupancy.to_grid(x_array) * self.scale).astype(int)
         idx = self.obs_grid[x_grid_pt[0], x_grid_pt[1]]
         
+        return True
+        '''
         if idx < 5:
             return True
         else:
             return False
+            '''
 
     def obs_cost(self, x):
         x_array = np.array(x)  # converts the state tuple x to an array
