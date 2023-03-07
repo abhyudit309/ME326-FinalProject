@@ -39,10 +39,10 @@ class OccupancyGrid:
 
         #Set the image topics from param server: http://wiki.ros.org/rospy/Overview/Parameter%20Server 
         self.color_image_topic  = rospy.get_param('pt_srv_color_img_topic', '/locobot/camera/color/image_raw')
-        if self.run_on_robot:
+        '''if self.run_on_robot:
             self.depth_d_size = np.uint16
         else:
-            self.depth_d_size = np.float32
+            self.depth_d_size = np.float32'''
         self.depth_image_topic = rospy.get_param('pt_srv_depth_img_topic', '/locobot/camera/aligned_depth_to_color/image_raw')
 
         self.depth_img_camera_info = rospy.get_param('pt_srv_depth_img_cam_info_topic', '/locobot/camera/aligned_depth_to_color/camera_info')
@@ -67,16 +67,7 @@ class OccupancyGrid:
         self.recency_bias = 0.3
         self.i = 0
 
-        '''
-        self.camera_cube_locator_marker = rospy.Publisher("/locobot/camera_cube_locator",Marker, queue_size=1)
-        self.camera_cube_locator_marker1 = rospy.Publisher("/locobot/camera_cube_locator1",Marker, queue_size=1)
-        self.camera_cube_locator_marker2 = rospy.Publisher("/locobot/camera_cube_locator2",Marker, queue_size=1)
-
-        
-        self.point = np.zeros(3)
-        self.point1 = np.zeros(3)
-        self.point2 = np.zeros(3)
-        '''
+        self.do_scan = True
        
         self.info_sub = rospy.Subscriber(self.depth_img_camera_info, CameraInfo, self.info_callback, queue_size=1)
         
@@ -89,34 +80,6 @@ class OccupancyGrid:
 
         self.last_update_time = 0
      
-
-    '''def camera_cube_locator_marker_gen(self):
-        marker = Marker()
-        self.thread_lock.acquire()
-        marker.header.frame_id = 'locobot/odom' #/locobot/camera_cube_locator
-        self.thread_lock.release()
-        marker.header.stamp = rospy.Time.now()
-        marker.id = 0
-        marker.type = Marker.SPHERE
-        # Set the marker scale
-        marker.scale.x = 0.05  # radius of the sphere
-        marker.scale.y = 0.05
-        marker.scale.z = 0.05
-
-        # Set the marker pose
-        self.thread_lock.acquire()
-        marker.pose.position.x = self.point[0]
-        marker.pose.position.y = self.point[1]
-        marker.pose.position.z = self.point[2]
-        self.thread_lock.release()
-        # Set the marker color
-        marker.color.a = 1.0 #transparency
-        marker.color.r = 1.0 #red
-        marker.color.g = 0.0
-        marker.color.b = 0.0
-
-        # Publish the marker
-        self.camera_cube_locator_marker.publish(marker)'''
 
     def display_occupancy(self):
         red = np.array([1,0,0])
@@ -147,7 +110,8 @@ class OccupancyGrid:
         plt.pause(0.001)
 
     def color_image_callback(self,color_msg):
-
+        if not self.do_scan:
+            return
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
         #print("Occupancy Grid Recieved Color image:", color_img.shape), 
             #"\n Red \n", color_img[:,:,0],
@@ -203,10 +167,15 @@ class OccupancyGrid:
 
     def depth_callback(self, depth_msg):
         # convert depth image message to a numpy array
-        depth_image = np.frombuffer(depth_msg.data, dtype=self.depth_d_size).reshape(depth_msg.height, depth_msg.width)
+        try:
+            depth_image_cv2 = self.bridge.imgmsg_to_cv2(depth_msg, desired_encoding='passthrough')
+        except CvBridgeError as e:
+            print(e)
+        depth_image = np.array(depth_image_cv2, dtype=np.float32)
         if self.run_on_robot:
-            depth_image = depth_image.astype(np.float32) / 1000
-
+            depth_image = depth_image / 1000
+        
+        #print("Middle Depth", depth_image[int(depth_image.shape[0] / 2), int(depth_image.shape[1] / 2)])
         self.thread_lock.acquire()
         self.depth_image = depth_image
         self.thread_lock.release()
@@ -230,16 +199,24 @@ class OccupancyGrid:
         points = rays * self.depth_image[..., np.newaxis]
         point4s = np.dstack((points,np.ones_like(u)))[..., np.newaxis]
         matrix4x4 = np.zeros((4,4))
+        
         try:    
-            (translation, rot) = self.listener.lookupTransform(self.base_frame,'locobot/camera_link', self.color_time)
-            matrix4x4 = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
             if self.run_on_robot:
+                last_tf_time = self.listener.getLatestCommonTime(self.base_frame,'locobot/camera_link')
+                (translation, rot) = self.listener.lookupTransform(self.base_frame,'locobot/camera_link', last_tf_time)
+                matrix4x4 = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
                 matrix4x4 = self.real_world_matrix @ matrix4x4 #Apply real world pose
+            else:
+                (translation, rot) = self.listener.lookupTransform(self.base_frame,'locobot/camera_link', self.color_time)
+                matrix4x4 = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
 
-        except (tf.LookupException, tf.ConnectivityException):
+
+        except:
+            print(traceback.format_exc())
+            print("ERROR IN OG TRY")
             pass
         
-        print("Camera Pose Matrix 4x4: \n", np.around(matrix4x4, 2))
+        #print("Camera Pose Matrix 4x4: \n", np.around(matrix4x4, 2))
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
         worldPoints = worldPoints[..., [1,0,2]] #swap x,y
 
@@ -254,7 +231,7 @@ class OccupancyGrid:
         
         self.thread_lock.acquire()
 
-        self.colors[:,:,0] *= (1-tall)
+        self.colors[:,:,0:5] *= (1-tall)
         self.colors[:,:,5] *= tall
         
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
@@ -289,7 +266,7 @@ class OccupancyGrid:
         # create a camera model from the camera info
         self.camera_model = PinholeCameraModel()
         self.camera_model.fromCameraInfo(info_msg)
-        print("Occupancy Grid Recieved Camera Info:\n", self.camera_model)
+        #print("Occupancy Grid Recieved Camera Info:\n", self.camera_model)
 
     def service_callback(self,req):
         #this function takes in a requested topic for the image, and returns pixel point
