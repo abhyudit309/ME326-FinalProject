@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 #roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_camera:=true use_rviz:=false align_depth:=true use_base:=true use_static_transform_pub:=true
 #roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false use_moveit_rviz:=false dof:=6
 
@@ -135,6 +136,21 @@ class Conductor:
         target_pose = np.round(target_pose, 1)
         print("rounded pose:", target_pose)
         ### orients locobot with block to be grasped ###
+        if self.state == 2:
+            try:
+                (trans, rot) = self.listener.lookupTransform('locobot/base_footprint', 'locobot/odom', self.tf_time) # what happens to this transform when run_on_robot=true??
+                tf_matrix = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
+            except (tf.LookupException, tf.ConnectivityException):
+                pass
+            pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
+            angle = np.arctan2(pose[1], pose[0])
+            orient_time = rospy.Time.now().to_sec() + np.abs(angle) / self.orient_speed
+            while rospy.Time.now().to_sec() < orient_time:
+                self.drive_controller.manual(0, np.sign(angle) * self.orient_speed)
+            self.drive_controller.manual(0, 0)
+            print("oriented with block!!")
+        ### ----------- ###
+
         try:
             if self.run_on_robot:
                 tf_matrix = np.linalg.inv(self.occupancy_grid.real_world_matrix)

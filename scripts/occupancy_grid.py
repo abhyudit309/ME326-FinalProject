@@ -172,10 +172,10 @@ class OccupancyGrid:
         except CvBridgeError as e:
             print(e)
         depth_image = np.array(depth_image_cv2, dtype=np.float32)
+
         if self.run_on_robot:
             depth_image = depth_image / 1000
-        
-        #print("Middle Depth", depth_image[int(depth_image.shape[0] / 2), int(depth_image.shape[1] / 2)])
+            
         self.thread_lock.acquire()
         self.depth_image = depth_image
         self.thread_lock.release()
