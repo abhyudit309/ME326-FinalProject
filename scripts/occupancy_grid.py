@@ -231,7 +231,8 @@ class OccupancyGrid:
         
         self.thread_lock.acquire()
 
-        self.colors[:,:,0:5] *= (1-tall)
+        # self.colors[:,:,0:5] *= (1-tall)
+        self.colors[:,:,0:5] *= (1-tall[:, :, np.newaxis])
         self.colors[:,:,5] *= tall
         
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
@@ -289,4 +290,3 @@ class OccupancyGrid:
         self.thread_lock.release()
         #print("Occupancy Grid Recieved Robot Position:\n", translation)
         #print("Occupancy Grid Recieved Robot Orientation:\n", rot)
-
