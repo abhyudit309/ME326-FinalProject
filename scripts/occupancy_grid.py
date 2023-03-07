@@ -7,6 +7,8 @@ import tf
 import numpy as np
 import cv2
 from cv_bridge import CvBridge, CvBridgeError
+import traceback
+import sys
 
 from image_geometry import PinholeCameraModel
 from sensor_msgs.msg import Image, CameraInfo

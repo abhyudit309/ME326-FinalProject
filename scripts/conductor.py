@@ -2,7 +2,7 @@
 
 
 #roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_camera:=true use_rviz:=false align_depth:=true use_base:=true use_static_transform_pub:=true
-#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false use_moveit_rviz:=false dof:=6
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false dof:=6 use_moveit_rviz:=false
 
 #Don't use the commands below
 #roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
@@ -15,6 +15,7 @@ import numpy as np
 import cv2
 import sys
 import traceback
+#from interbotix_xs_modules.locobot import InterbotixLocobotXS
 
 from occupancy_grid import OccupancyGrid
 from path_planner import PathPlanner
@@ -57,7 +58,8 @@ class Conductor:
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
 
-        self.close_enough = 0.5 #m
+        self.close_enough = 0.35 #m
+        self.bot_r = 0.25 #m
 
         self.display_every = 0.5 #s
         self.display_time = -99999999
@@ -111,7 +113,10 @@ class Conductor:
 
     def driving_state(self, start, target):
         pos = self.drive_controller.get_P_pos()
-        if (np.linalg.norm(pos-target) < self.close_enough):
+        if (np.linalg.norm((pos - np.array([self.drive_controller.L,0]))-target) < self.bot_r):
+            print("Too close, backing up")
+            self.drive_controller.manual(-0.1, 0)
+        elif (np.linalg.norm(pos-target) < self.close_enough):
             self.drive_controller.manual(0, 0)
             print("stopping")
             self.state += 1
@@ -124,8 +129,8 @@ class Conductor:
                 self.replan_time = time
 
     def grasping(self, target_pose):
-        target_pose = np.round(target_pose, 1)
-        print("rounded pose:", target_pose)
+        #target_pose = np.round(target_pose, 1)
+        #print("rounded pose:", target_pose)
         ### orients locobot with block to be grasped ###
         if self.state == 2:
             try:
