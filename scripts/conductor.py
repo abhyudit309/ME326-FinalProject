@@ -57,7 +57,7 @@ class Conductor:
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
 
-        self.close_enough = 0.35 #m
+        self.close_enough = 0.5 #m
 
         self.display_every = 0.5 #s
         self.display_time = -99999999
@@ -93,12 +93,12 @@ class Conductor:
             if not(self.get_block_from is None):
                 self.state += 1
         elif(self.state == 1):
-            self.driving_state(self.get_block_from)
+            self.driving_state(self.bring_block_to, self.get_block_from)
         elif(self.state == 2):
             self.grasping(self.get_block_from)
             self.state += 1
         elif(self.state == 3):
-            self.driving_state(self.bring_block_to)
+            self.driving_state(self.get_block_from, self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
             self.state = 0
@@ -109,7 +109,7 @@ class Conductor:
             print("Swapping to state:", self.state)
         self.display_map()
 
-    def driving_state(self, target):
+    def driving_state(self, start, target):
         pos = self.drive_controller.get_P_pos()
         if (np.linalg.norm(pos-target) < self.close_enough):
             self.drive_controller.manual(0, 0)
@@ -118,15 +118,6 @@ class Conductor:
         else:
             time = rospy.Time.now().to_sec()
             if (time - self.replan_time > self.replan_every):
-                start = pos
-                ### Do we need this ? ###
-                if self.state == 1:
-                    temp_block_from, temp_block_to = self.station_tracker.get_next_move()
-                    if not(temp_block_from is None):
-                        self.get_block_from = temp_block_from
-                        self.bring_block_to = temp_block_to
-                        target = temp_block_from
-                ### ---------------- ###
                 self.path_planner.generate_obs_grid()       
                 self.path_planner.plan(self.x_init, target)
                 self.path_planner.path_publisher()
@@ -138,8 +129,11 @@ class Conductor:
         ### orients locobot with block to be grasped ###
         if self.state == 2:
             try:
-                (trans, rot) = self.listener.lookupTransform('locobot/base_footprint', 'locobot/odom', self.tf_time) # what happens to this transform when run_on_robot=true??
-                tf_matrix = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
+                if self.run_on_robot:
+                    tf_matrix = np.linalg.inv(self.occupancy_grid.real_world_matrix)
+                else:
+                    (trans, rot) = self.listener.lookupTransform('locobot/base_footprint', 'locobot/odom', self.tf_time)
+                    tf_matrix = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
             except (tf.LookupException, tf.ConnectivityException):
                 pass
             pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
@@ -150,7 +144,6 @@ class Conductor:
             self.drive_controller.manual(0, 0)
             print("oriented with block!!")
         ### ----------- ###
-
         try:
             if self.run_on_robot:
                 tf_matrix = np.linalg.inv(self.occupancy_grid.real_world_matrix)
@@ -159,16 +152,6 @@ class Conductor:
                 tf_matrix = tf.transformations.compose_matrix(translate=trans, angles=tf.transformations.euler_from_quaternion(rot))
         except (tf.LookupException, tf.ConnectivityException):
             pass
-        if self.state == 2:
-            pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
-            angle = np.arctan2(pose[1], pose[0])
-            orient_time = rospy.Time.now().to_sec() + np.abs(angle) / self.orient_speed
-            while rospy.Time.now().to_sec() < orient_time:
-                self.drive_controller.manual(0, np.sign(angle) * self.orient_speed)
-            self.drive_controller.manual(0, 0)
-            print("oriented with block!!")
-        ### ----------- ###
-        
         pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
         self.occupancy_grid.do_scan = False
         # self.orient_camera.tilt_camera(angle=-0.5)
