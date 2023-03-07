@@ -13,6 +13,7 @@ import tf
 import numpy as np
 import cv2
 import sys
+import traceback
 
 from occupancy_grid import OccupancyGrid
 from path_planner import PathPlanner
@@ -176,6 +177,7 @@ if __name__ == "__main__":
         try:
             conductor.state_machine()
         except:
+            print(traceback.format_exc())
             print("Shutting down")
             break
             

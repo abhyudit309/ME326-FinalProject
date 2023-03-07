@@ -16,30 +16,31 @@ class StationTracker:
         self.occupancy_grid = occupancy_grid
         self.drive_controller = drive_controller
 
-        self.station_locations = np.array([[0,-1],[-1,0],[0,1]])
-        self.radius = 0.25
+        self.station_locations = np.array([[-0.5,1],[0.25,1.25],[1,0],[0,-0.75]])
+        self.station_radius = np.array([0.15,0.2,0.3,0.15])
+        self.s_num = 4
 
         self.team_colors = [0,1,2,3] #  red:0 | yellow:1 | green:2 | blue:3 
         self.color_names = ["red","yellow","green","blue"]
         self.pick_up_eq_dist = 1 #m represents pickup time / speed
 
         self.oracle = np.array([
-        [2,1,0],  #Red
-        [0,1,1],  #Yellow
-        [0,1,0],  #Green
-        [1,0,2]]) #Blue
+        [2,1,0,0],  #Red
+        [0,1,1,0],  #Yellow
+        [0,1,0,0],  #Green
+        [1,0,2,0]]) #Blue
 
         choice_permutations = np.array([
-        [0,1,2],
-        [2,0,1],
-        [1,2,0],
-        [0,2,1],
-        [1,0,2],
-        [2,1,0]])
+        [0,1,2,3],
+        [2,0,1,3],
+        [1,2,0,3],
+        [0,2,1,3],
+        [1,0,2,3],
+        [2,1,0,3]])
 
-        self.oracle_choice = np.zeros((6,self.oracle.shape[0],self.oracle.shape[1]))
+        self.oracle_choice = np.zeros((choice_permutations.shape[0],self.oracle.shape[0],self.oracle.shape[1]))
         for i in range(self.oracle_choice.shape[0]):
-            self.oracle_choice[i,:,[0,1,2]] = self.oracle[:,choice_permutations[i]].T
+            self.oracle_choice[i,:,[0,1,2,3]] = self.oracle[:,choice_permutations[i]].T
 
         #print(self.oracle_choice)
 
@@ -48,7 +49,7 @@ class StationTracker:
 
         self.moveable_to_station_dist = None
 
-        self.current_station_counts = np.zeros((4, 4))
+        self.current_station_counts = np.zeros((4, (self.s_num+1)))
 
         cube_side =(self.occupancy_grid.cube_size / self.occupancy_grid.grid_size)
 
@@ -99,7 +100,6 @@ class StationTracker:
         self.occupancy_grid.thread_lock.release()
 
         normalized_grid = (normalized_grid.clip(0, 1) * 255).astype(np.uint8)
-        station_counts = np.zeros((4,3))
         blocks = [] # [x,y,Color]  | red:0 | yellow:1 | green:2 | blue:3 | 
         
         '''print(normalized_grid[:,:,0].max())
@@ -113,9 +113,9 @@ class StationTracker:
                 blocks.append([world_pt[0],world_pt[1],i])
         if len(blocks) > 0:
             self.scanned_blocks = np.array(blocks)
-            sqr_dist = np.zeros((self.scanned_blocks.shape[0], 4))
-            sqr_dist[:,3] = self.radius**2 #Set the dist to no station
-            sqr_dist[:,0:3] = np.sum((self.scanned_blocks[:,np.newaxis,0:2] - self.station_locations[np.newaxis,...])**2, axis = 2)
+            sqr_dist = np.zeros((self.scanned_blocks.shape[0], self.s_num + 1))
+            sqr_dist[:,self.s_num] = 1 #Set the dist to no station
+            sqr_dist[:,0:self.s_num] = np.sum((self.scanned_blocks[:,np.newaxis,0:2] - self.station_locations[np.newaxis,...])**2, axis = 2) / (self.station_radius[np.newaxis,...])**2
             
             closest = np.argmin(sqr_dist, axis = 1)
 
@@ -123,13 +123,16 @@ class StationTracker:
 
             moveable_mask = np.isin(self.scanned_blocks[:, 2], self.team_colors)
             self.moveable_blocks = self.scanned_blocks[moveable_mask]
-            self.moveable_to_station_dist = np.sqrt(sqr_dist)[moveable_mask]
+            dist = np.zeros((self.scanned_blocks.shape[0], self.s_num + 1))
+            dist[:,self.s_num] = np.max(self.station_radius)
+            dist[:,0:self.s_num] = np.sqrt(np.sum((self.scanned_blocks[:,np.newaxis,0:2] - self.station_locations[np.newaxis,...])**2, axis = 2))
+            self.moveable_to_station_dist = dist[moveable_mask]
             #print("Station Dist Movable \n",self.moveable_to_station_dist)
 
-            color_station_pairs = (self.scanned_blocks[:,2] * 4 + closest).astype(np.int32)
+            color_station_pairs = (self.scanned_blocks[:,2] * (self.s_num + 1) + closest).astype(np.int32)
 
             #print("csp \n", color_station_pairs)
-            self.current_station_counts = np.bincount(color_station_pairs, minlength = 16).reshape(4,4)
+            self.current_station_counts = np.bincount(color_station_pairs, minlength = 4*(self.s_num+1)).reshape(4,(self.s_num+1))
         else:
             print("No blocks found")
             self.scanned_blocks = []
@@ -155,16 +158,16 @@ class StationTracker:
 
         color_from = self.moveable_blocks[:,2:4].astype(np.int32)
         #print(color_from)
-        new_blocks = np.zeros((self.moveable_blocks.shape[0],4,self.oracle.shape[0],self.oracle.shape[1]))
+        new_blocks = np.zeros((self.moveable_blocks.shape[0],(self.s_num+1),self.oracle.shape[0],self.oracle.shape[1]))
         for n in range(new_blocks.shape[0]):
             for s in range(new_blocks.shape[1]):
                 move_matrix = np.zeros_like(self.current_station_counts)
                 move_matrix[color_from[n,0], color_from[n,1]] = -1
                 move_matrix[color_from[n,0], s] = 1
-                new_blocks[n,s,:,:] = (move_matrix + self.current_station_counts)[:,0:3]
+                new_blocks[n,s,:,:] = (move_matrix + self.current_station_counts)[:,0:self.s_num]
 
         #print("new_blocks \n", new_blocks)
-        d_score = self.score(new_blocks) - self.score(self.current_station_counts[:,0:3])
+        d_score = self.score(new_blocks) - self.score(self.current_station_counts[:,0:self.s_num])
         #print("d_score \n", d_score)
 
         expected_score = np.sum(d_score * p[np.newaxis,np.newaxis,:], axis = 2)
@@ -196,7 +199,7 @@ class StationTracker:
         return(total_score)
 
     def station_probabilities(self):
-        errors = np.sum(np.abs(self.current_station_counts[np.newaxis,:,0:3] - self.oracle_choice),axis=(1,2))
+        errors = np.sum(np.abs(self.current_station_counts[np.newaxis,:,0:self.s_num] - self.oracle_choice),axis=(1,2))
         total_blocks = np.sum(self.oracle)
 
         norm_const = 1/600
