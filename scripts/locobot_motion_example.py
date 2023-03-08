@@ -104,7 +104,7 @@ class MoveLocobotArm(object):
 		#['waist', 'shoulder', 'elbow', 'forearm_roll', 'wrist_angle', 'wrist_rotate']
 		joint_goal[0] = -0.1115207331248822 #waist
 		joint_goal[1] = -0.5313552376357276 #shoulder
-		joint_goal[2] = 1.058371284458718 #elbow
+		joint_goal[2] = 1.2 #elbow
 		joint_goal[3] = -0.05608022936825474 #forearm_roll
 		joint_goal[4] = 0.9302728070281328 #wrist_angle
 		joint_goal[5] = -0.14247350829385486 #wrist_rotate
