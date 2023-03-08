@@ -97,12 +97,12 @@ class Conductor:
             if not(self.get_block_from is None):
                 self.state += 1
         elif(self.state == 1):
-            self.driving_state(self.bring_block_to, self.get_block_from)
+            self.driving_state(self.get_block_from)
         elif(self.state == 2):
             self.grasping(self.get_block_from)
             self.state += 1
         elif(self.state == 3):
-            self.driving_state(self.get_block_from, self.bring_block_to)
+            self.driving_state(self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
             self.state = 0
@@ -113,7 +113,7 @@ class Conductor:
             print("Swapping to state:", self.state)
         self.display_map()
 
-    def driving_state(self, start, target):
+    def driving_state(self, target):
         pos = self.drive_controller.get_P_pos()
         #print("Target", target)
         #print("Pos", pos)
@@ -128,9 +128,18 @@ class Conductor:
             self.state += 1
         else:
             time = rospy.Time.now().to_sec()
+
             if (time - self.replan_time > self.replan_every):
+            	#Try rescanning
+            	if self.state == 1:
+                    temp_block_from, temp_block_to = self.station_tracker.get_next_move()
+                    if not(temp_block_from is None):
+                        self.get_block_from = temp_block_from
+                        self.bring_block_to = temp_block_to
+                        target = temp_block_from
+                #end rescanning
                 self.path_planner.generate_obs_grid()       
-                self.path_planner.plan(self.x_init, target)
+                self.path_planner.plan(pos, target) #Swapped to position of point p rather than the center of the robot
                 self.path_planner.path_publisher()
                 self.replan_time = time
 
