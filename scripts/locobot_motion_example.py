@@ -121,7 +121,7 @@ class MoveLocobotArm(object):
 		pose_goal.position.z = 0.02
 
 		v = np.matrix([0,1,0]) #pitch about y-axis
-		th = np.pi/2 - 0.03 #10*np.pi/180. #pitch by 45deg
+		th = np.pi/2 - 0.15 #10*np.pi/180. #pitch by 45deg
 		#note that no rotation is th= 0 deg
 
 		pose_goal.orientation.x = v.item(0)*np.sin(th/2)

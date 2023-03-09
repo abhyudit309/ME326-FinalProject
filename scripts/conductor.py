@@ -60,7 +60,7 @@ class Conductor:
         self.replan_every = 0.5 #s
         self.replan_time = -99999999
 
-        self.close_enough = 0.35 #m
+        self.close_enough = 0.15 #m
         self.bot_r = 0.25 #m
 
         
@@ -69,6 +69,7 @@ class Conductor:
         self.spin_speed = 0.5 # rad/s
         self.spin_time = 2*np.pi / self.spin_speed #s
         self.stop_time = 0.5 #s
+        self.backup_pos = [0,0]
 
         self.get_block_from = np.zeros(2)
         self.bring_block_to = np.zeros(2)
@@ -88,11 +89,12 @@ class Conductor:
             self.x = data.pose.pose.position.x
             self.y = data.pose.pose.position.y
         self.tf_time = data.header.stamp
-        self.x_init = (self.x, self.y)
+        self.x_init = np.array([self.x, self.y])
     
     def state_machine(self):
         starting_state = self.state
         self.orient_camera.tilt_camera()
+
         if(self.state == 0):
             self.spin_scan()
             self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
@@ -107,6 +109,11 @@ class Conductor:
             self.driving_state(self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
+            self.state += 1
+            self.backup_pos = self.x_init.copy()
+        elif(self.state == 5):
+            self.driving_state(self.backup_pos)
+        elif(self.state == 6):
             self.state = 0
         else:
             print("State number not in range:", self.state)
@@ -121,7 +128,9 @@ class Conductor:
         #print("Pos", pos)
         #print("dist", np.linalg.norm(pos-target))
         
-        if (np.linalg.norm((pos - np.array([self.drive_controller.L,0]))-target) < self.bot_r) and self.state != 1:
+        if (np.linalg.norm(self.x_init - target) < self.bot_r) and self.state != 1:
+            print("Robot center", self.x_init)
+            print("target", target)
             print("Too close, backing up")
             self.drive_controller.manual(-0.1, 0)
         elif (np.linalg.norm(pos-target) < self.close_enough):
@@ -150,6 +159,7 @@ class Conductor:
         #print("rounded pose:", target_pose)
         ### orients locobot with block to be grasped ###
         if self.state == 2:
+            self.move_locobot_arm.open_gripper()
             try:
                 if self.run_on_robot:
                     tf_matrix = np.linalg.inv(self.occupancy_grid.real_world_matrix)
