@@ -23,7 +23,7 @@ class DriveController:
 
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
-        self.L = 0.2
+        self.L = 0.1
         self.path = np.zeros((1,2))
         self.p = np.zeros(2)
         self.thread_lock = threading.Lock()
@@ -36,10 +36,10 @@ class DriveController:
         self.path = None
 
         if(self.run_on_robot):
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
         else:
-            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
-        rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback)
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback, queue_size=1)
+        rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback, queue_size=1)
         
     def traj_callback(self, msg):
         self.go = True
@@ -96,8 +96,10 @@ class DriveController:
         path_index = int(np.minimum(np.argmin(dist_to_path) + 1, self.path.shape[0] - 1))
         #print("path_index", path_index)
         target = self.path[path_index]
-
-        k = 13
+        if self.run_on_robot:
+            k = 8
+        else:
+            k = 13
         u = np.ravel((k*np.linalg.inv(M)) @ (target - p).reshape((2,1)))
 
         v = u[0]

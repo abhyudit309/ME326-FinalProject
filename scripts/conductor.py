@@ -7,6 +7,8 @@
 #Don't use the commands below
 #roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
 #roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_mobile_base:=true use_gazebo:=false use_moveit_rviz:=false align_depth:=true use_nav:=true dof:=6
+#roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_camera:=true use_rviz:=false align_depth:=true use_base:=true use_static_transform_pub:=true
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false dof:=6 use_moveit_rviz:=false
 
 import time
 import rospy
@@ -61,7 +63,7 @@ class Conductor:
         self.close_enough = 0.35 #m
         self.bot_r = 0.25 #m
 
-        self.display_every = 0.5 #s
+        
         self.display_time = -99999999
         
         self.spin_speed = 0.5 # rad/s
@@ -72,9 +74,11 @@ class Conductor:
         self.bring_block_to = np.zeros(2)
         
         if(self.run_on_robot):
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
+            self.display_every = 0.5 #s
         else:
-            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback, queue_size=1)
+            self.display_every = 0.1 #s
     
     def OdometryCallback(self, data):
         if self.run_on_robot:
@@ -88,19 +92,19 @@ class Conductor:
     
     def state_machine(self):
         starting_state = self.state
-        
+        self.orient_camera.tilt_camera()
         if(self.state == 0):
             self.spin_scan()
             self.get_block_from, self.bring_block_to = self.station_tracker.get_next_move()
             if not(self.get_block_from is None):
                 self.state += 1
         elif(self.state == 1):
-            self.driving_state(self.bring_block_to, self.get_block_from)
+            self.driving_state(self.get_block_from)
         elif(self.state == 2):
             self.grasping(self.get_block_from)
             self.state += 1
         elif(self.state == 3):
-            self.driving_state(self.get_block_from, self.bring_block_to)
+            self.driving_state(self.bring_block_to)
         elif(self.state == 4):
             self.grasping(self.bring_block_to)
             self.state = 0
@@ -111,9 +115,13 @@ class Conductor:
             print("Swapping to state:", self.state)
         self.display_map()
 
-    def driving_state(self, start, target):
+    def driving_state(self, target):
         pos = self.drive_controller.get_P_pos()
-        if (np.linalg.norm((pos - np.array([self.drive_controller.L,0]))-target) < self.bot_r):
+        #print("Target", target)
+        #print("Pos", pos)
+        #print("dist", np.linalg.norm(pos-target))
+        
+        if (np.linalg.norm((pos - np.array([self.drive_controller.L,0]))-target) < self.bot_r) and self.state != 1:
             print("Too close, backing up")
             self.drive_controller.manual(-0.1, 0)
         elif (np.linalg.norm(pos-target) < self.close_enough):
@@ -122,9 +130,18 @@ class Conductor:
             self.state += 1
         else:
             time = rospy.Time.now().to_sec()
+
             if (time - self.replan_time > self.replan_every):
-                self.path_planner.generate_obs_grid()       
-                self.path_planner.plan(self.x_init, target)
+            	#Try rescanning
+                if self.state == 1:
+                    temp_block_from, temp_block_to = self.station_tracker.get_next_move()
+                    if not(temp_block_from is None):
+                        self.get_block_from = temp_block_from
+                        self.bring_block_to = temp_block_to
+                        target = temp_block_from
+                #end rescanning
+                self.path_planner.generate_obs_grid()
+                self.path_planner.plan(pos, target) #Swapped to position of point p rather than the center of the robot
                 self.path_planner.path_publisher()
                 self.replan_time = time
 
@@ -159,7 +176,7 @@ class Conductor:
             pass
         pose = np.matmul(tf_matrix, np.array([target_pose[0], target_pose[1], 0, 1]))
         self.occupancy_grid.do_scan = False
-        # self.orient_camera.tilt_camera(angle=-0.5)
+        #self.orient_camera.tilt_camera(angle=-0.5)
         print("going down!!", pose[0], pose[1])
         self.move_locobot_arm.move_gripper_down_to_grasp(pose[0], pose[1])
         if self.state == 2:
@@ -172,7 +189,7 @@ class Conductor:
             pass          
         self.move_locobot_arm.move_arm_down_for_camera()
         self.occupancy_grid.do_scan = True
-        # self.orient_camera.tilt_camera()
+        #self.orient_camera.tilt_camera()
 
     def spin_scan(self):
         print("Spinning")
@@ -201,8 +218,10 @@ if __name__ == "__main__":
     conductor = Conductor(run_on_robot=arg)
     conductor.stop()
     if conductor.run_on_robot:
+        #conductor.move_locobot_arm.move_gripper_down_to_grasp(0.5, 0.0)
         conductor.move_locobot_arm.move_arm_down_for_camera()
         conductor.orient_camera.tilt_camera()
+        conductor.move_locobot_arm.open_gripper()
     while True:
         try:
             conductor.state_machine()

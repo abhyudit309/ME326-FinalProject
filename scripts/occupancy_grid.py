@@ -29,7 +29,7 @@ class OccupancyGrid:
         self.run_on_robot = run_on_robot
 
         if self.run_on_robot:
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
             self.base_frame = 'locobot/base_footprint'
         else:
             self.base_frame = 'locobot/odom'
@@ -57,6 +57,8 @@ class OccupancyGrid:
 
         self.cube_size = 0.02 #m
         self.grid_size = 0.005 #m
+
+        self.arm_r = 0.45 #m
         
         self.field_size = 4.5 #m
         self.obs_height = 0.03 #m
@@ -113,6 +115,7 @@ class OccupancyGrid:
 
     def color_image_callback(self,color_msg):
         if not self.do_scan:
+            #print("eyes closed")
             return
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
         #print("Occupancy Grid Recieved Color image:", color_img.shape), 
@@ -222,6 +225,9 @@ class OccupancyGrid:
         worldPoints = np.matmul(matrix4x4, point4s)[:, :, :3, 0]
         worldPoints = worldPoints[..., [1,0,2]] #swap x,y
 
+        cameraWorldPoint = matrix4x4[0:3,3]
+        cameraWorldPoint = cameraWorldPoint[..., [1,0,2]] #swap x,y
+
         gridPoints = self.to_grid(worldPoints)
         out_of_bounds = (np.greater_equal(gridPoints[:,:,0], self.grid.shape[0])
         + np.greater_equal(gridPoints[:,:,1], self.grid.shape[1])
@@ -231,12 +237,18 @@ class OccupancyGrid:
         gridPoints = np.where(out_of_bounds > 0, np.array([0,0]), gridPoints)
         tall = np.where(worldPoints[:,:,2] < self.obs_height, 0,1) # obs or blank depending on height
         
+        cube_height = np.where(worldPoints[:,:,2] < (self.cube_size + 0.005), 1,0) * np.where(worldPoints[:,:,2] > (0.002), 1,0)
+        not_too_close = np.where(np.linalg.norm(worldPoints[:,:,:] - cameraWorldPoint, axis = 2) < (self.arm_r), 0,1)
+
+
         self.thread_lock.acquire()
 
-        # self.colors[:,:,0:5] *= (1-tall)
-        self.colors[:,:,0:5] *= (1-tall[:, :, np.newaxis])
+        self.colors[:,:,0] *= (1-tall)
+
+        self.colors[:,:,1:5] *= cube_height[:, :, np.newaxis]
         self.colors[:,:,5] *= tall
-        
+        self.colors *= not_too_close[:, :, np.newaxis]
+        #print(np.average(worldPoints[:,:,2]))
         self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:] = self.colors + self.recency_bias * self.grid[gridPoints[:,:,0],gridPoints[:,:,1],:]
         self.grid[0,0] = np.array([1,0,0,0,0,0])
         self.i += 1
@@ -281,7 +293,7 @@ class OccupancyGrid:
     def OdometryCallback(self, data):
         if self.run_on_robot:
             translation = data.pose.position
-            translation = [translation.x, translation.y, translation.z]
+            translation = [translation.x, translation.y, 0]
             rot = data.pose.orientation
             rot = [rot.x, rot.y, rot.z, rot.w]
         else: 
