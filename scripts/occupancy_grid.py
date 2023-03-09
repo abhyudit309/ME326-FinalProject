@@ -29,7 +29,7 @@ class OccupancyGrid:
         self.run_on_robot = run_on_robot
 
         if self.run_on_robot:
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
             self.base_frame = 'locobot/base_footprint'
         else:
             self.base_frame = 'locobot/odom'
@@ -58,7 +58,7 @@ class OccupancyGrid:
         self.cube_size = 0.02 #m
         self.grid_size = 0.005 #m
 
-        self.arm_r = 0.1 #m
+        self.arm_r = 0.45 #m
         
         self.field_size = 4.5 #m
         self.obs_height = 0.03 #m
@@ -115,6 +115,7 @@ class OccupancyGrid:
 
     def color_image_callback(self,color_msg):
         if not self.do_scan:
+            #print("eyes closed")
             return
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
         #print("Occupancy Grid Recieved Color image:", color_img.shape), 

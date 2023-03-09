@@ -38,7 +38,7 @@ class OrientCamera(object):
 		self.orient_pub = rospy.Publisher(tilt_topic, Float64, queue_size=1, latch=True)
 		self.pan_pub = rospy.Publisher(pan_topic, Float64, queue_size=1, latch=True)
 
-	def tilt_camera(self,angle=0.5):
+	def tilt_camera(self,angle=0.6):
 		msg = Float64()
 		msg.data = angle
 		self.orient_pub.publish(msg)
@@ -118,10 +118,10 @@ class MoveLocobotArm(object):
 
 		pose_goal.position.x = float(x) #0.5
 		pose_goal.position.y = float(y) #0.0
-		pose_goal.position.z = 0.03
+		pose_goal.position.z = 0.02
 
 		v = np.matrix([0,1,0]) #pitch about y-axis
-		th = np.pi/2 #10*np.pi/180. #pitch by 45deg
+		th = np.pi/2 - 0.03 #10*np.pi/180. #pitch by 45deg
 		#note that no rotation is th= 0 deg
 
 		pose_goal.orientation.x = v.item(0)*np.sin(th/2)

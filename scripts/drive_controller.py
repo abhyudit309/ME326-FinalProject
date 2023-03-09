@@ -36,10 +36,10 @@ class DriveController:
         self.path = None
 
         if(self.run_on_robot):
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
         else:
-            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
-        rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback)
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback, queue_size=1)
+        rospy.Subscriber("path_publisher", Float32MultiArray, self.traj_callback, queue_size=1)
         
     def traj_callback(self, msg):
         self.go = True
