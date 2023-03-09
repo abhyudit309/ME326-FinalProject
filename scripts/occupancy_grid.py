@@ -29,7 +29,7 @@ class OccupancyGrid:
         self.run_on_robot = run_on_robot
 
         if self.run_on_robot:
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
             self.base_frame = 'locobot/base_footprint'
         else:
             self.base_frame = 'locobot/odom'
@@ -58,7 +58,7 @@ class OccupancyGrid:
         self.cube_size = 0.02 #m
         self.grid_size = 0.005 #m
 
-        self.arm_r = 0.1 #m
+        self.arm_r = 0.45 #m
         
         self.field_size = 4.5 #m
         self.obs_height = 0.03 #m
@@ -115,6 +115,7 @@ class OccupancyGrid:
 
     def color_image_callback(self,color_msg):
         if not self.do_scan:
+            #print("eyes closed")
             return
         color_img = self.bridge.imgmsg_to_cv2(color_msg, "rgb8")
         #print("Occupancy Grid Recieved Color image:", color_img.shape), 
@@ -137,8 +138,8 @@ class OccupancyGrid:
         yellow_mask = cv2.inRange(hsv, lower_bound, upper_bound)
 
         # Green
-        lower_bound = np.array([33,100,10])
-        upper_bound = np.array([90,256,256])
+        lower_bound = np.array([65,100,10])
+        upper_bound = np.array([95,256,256])
 
         green_mask = cv2.inRange(hsv, lower_bound, upper_bound)
 
@@ -167,7 +168,7 @@ class OccupancyGrid:
         print("Now:", rospy.Time())
         print("Image time:", color_msg.header.stamp)'''
 
-        self.scan()
+        #self.scan()
 
     def depth_callback(self, depth_msg):
         # convert depth image message to a numpy array
@@ -298,8 +299,14 @@ class OccupancyGrid:
         else: 
             translation = data.pose.pose.position
             rot = data.pose.pose.orientation
+        
         self.thread_lock.acquire()
         self.real_world_matrix = tf.transformations.compose_matrix(translate=translation, angles=tf.transformations.euler_from_quaternion(rot))
         self.thread_lock.release()
+
+        if not self.do_scan:
+            #print("eyes closed")
+            return
+        self.scan()
         #print("Occupancy Grid Recieved Robot Position:\n", translation)
         #print("Occupancy Grid Recieved Robot Orientation:\n", rot)

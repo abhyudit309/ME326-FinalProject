@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+#roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=true use_camera:=true use_gazebo:=false dof:=6 use_moveit_rviz:=false
 
 #roslaunch interbotix_xslocobot_control xslocobot_control.launch robot_model:=locobot_wx250s show_lidar:=true use_camera:=true use_rviz:=false align_depth:=true use_base:=true use_static_transform_pub:=true
 #roslaunch interbotix_xslocobot_moveit xslocobot_moveit.launch robot_model:=locobot_wx250s show_lidar:=true use_actual:=false use_camera:=true use_gazebo:=false dof:=6 use_moveit_rviz:=false
@@ -57,13 +58,13 @@ class Conductor:
         print("argv:", sys.argv)
         self.move_locobot_arm = MoveLocobotArm(moveit_commander)
 
-        self.replan_every = 0.5 #s
+        self.replan_every = 3 #s
         self.replan_time = -99999999
 
         self.close_enough = 0.35 #m
         self.bot_r = 0.25 #m
 
-        self.display_every = 10 #s
+        
         self.display_time = -99999999
         
         self.spin_speed = 0.5 # rad/s
@@ -74,9 +75,11 @@ class Conductor:
         self.bring_block_to = np.zeros(2)
         
         if(self.run_on_robot):
-            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback)
+            rospy.Subscriber("/camera_frame/mavros/vision_pose/pose", PoseStamped, self.OdometryCallback, queue_size=1)
+            self.display_every = 0.5 #s
         else:
-            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback)
+            rospy.Subscriber("/locobot/mobile_base/odom", Odometry, self.OdometryCallback, queue_size=1)
+            self.display_every = 0.1 #s
     
     def OdometryCallback(self, data):
         if self.run_on_robot:
@@ -131,14 +134,14 @@ class Conductor:
 
             if (time - self.replan_time > self.replan_every):
             	#Try rescanning
-            	if self.state == 1:
-                    temp_block_from, temp_block_to = self.station_tracker.get_next_move()
-                    if not(temp_block_from is None):
-                        self.get_block_from = temp_block_from
-                        self.bring_block_to = temp_block_to
-                        target = temp_block_from
+                # if self.state == 1:
+                #     temp_block_from, temp_block_to = self.station_tracker.get_next_move()
+                #     if not(temp_block_from is None):
+                #         self.get_block_from = temp_block_from
+                #         self.bring_block_to = temp_block_to
+                #         target = temp_block_from
                 #end rescanning
-                self.path_planner.generate_obs_grid()       
+                self.path_planner.generate_obs_grid()
                 self.path_planner.plan(pos, target) #Swapped to position of point p rather than the center of the robot
                 self.path_planner.path_publisher()
                 self.replan_time = time
