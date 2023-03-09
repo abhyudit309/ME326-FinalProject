@@ -59,7 +59,7 @@ class MoveLocobotArm(object):
 		#self.gripper_move_group = self.moveit_commander.MoveGroupCommander(self.gripper_group_name)
 
 		self.arm_group_name = "interbotix_arm" #interbotix_arm and interbotix_gripper (can see in Rviz)
-		#self.arm_move_group = self.moveit_commander.MoveGroupCommander(self.arm_group_name)
+		self.arm_move_group = self.moveit_commander.MoveGroupCommander(self.arm_group_name)
 		self.display_trajectory_publisher = rospy.Publisher('/locobot/move_group/display_planned_path',
 		                                               moveit_msgs.msg.DisplayTrajectory,
 		                                               queue_size=20)
@@ -100,44 +100,44 @@ class MoveLocobotArm(object):
 
 	def move_arm_down_for_camera(self):
 		#start here
-		#joint_goal = self.arm_move_group.get_current_joint_values() 
-		#['waist', 'shoulder', 'elbow', 'forearm_roll', 'wrist_angle', 'wrist_rotate']
-		# joint_goal[0] = -0.1115207331248822 #waist
-		# joint_goal[1] = -0.5313552376357276 #shoulder
-		# joint_goal[2] = 1.2 #elbow
-		# joint_goal[3] = -0.05608022936825474 #forearm_roll
-		# joint_goal[4] = 0.9302728070281328 #wrist_angle
-		# joint_goal[5] = -0.14247350829385486 #wrist_rotate
+		joint_goal = self.arm_move_group.get_current_joint_values() 
+		['waist', 'shoulder', 'elbow', 'forearm_roll', 'wrist_angle', 'wrist_rotate']
+		joint_goal[0] = -0.1115207331248822 #waist
+		joint_goal[1] = -0.5313552376357276 #shoulder
+		joint_goal[2] = 1.2 #elbow
+		joint_goal[3] = -0.05608022936825474 #forearm_roll
+		joint_goal[4] = 0.9302728070281328 #wrist_angle
+		joint_goal[5] = -0.14247350829385486 #wrist_rotate
 
 		# The go command can be called with joint values, poses, or without any
 		# parameters if you have already set the pose or joint target for the group
-		#self.arm_move_group.go(joint_goal, wait=True)	
+		self.arm_move_group.go(joint_goal, wait=True)	
 		pass
 
 	def move_gripper_down_to_grasp(self, x, y):
-		# pose_goal = geometry_msgs.msg.Pose()
+		pose_goal = geometry_msgs.msg.Pose()
 
-		# pose_goal.position.x = float(x) #0.5
-		# pose_goal.position.y = float(y) #0.0
-		# pose_goal.position.z = 0.02
+		pose_goal.position.x = float(x) #0.5
+		pose_goal.position.y = float(y) #0.0
+		pose_goal.position.z = 0.02
 
-		# v = np.matrix([0,1,0]) #pitch about y-axis
-		# th = np.pi/2 - 0.03 #10*np.pi/180. #pitch by 45deg
-		# #note that no rotation is th= 0 deg
+		v = np.matrix([0,1,0]) #pitch about y-axis
+		th = np.pi/2 - 0.03 #10*np.pi/180. #pitch by 45deg
+		#note that no rotation is th= 0 deg
 
-		# pose_goal.orientation.x = v.item(0)*np.sin(th/2)
-		# pose_goal.orientation.y = v.item(1)*np.sin(th/2)
-		# pose_goal.orientation.z = v.item(2)*np.sin(th/2)
-		# pose_goal.orientation.w = np.cos(th/2)
+		pose_goal.orientation.x = v.item(0)*np.sin(th/2)
+		pose_goal.orientation.y = v.item(1)*np.sin(th/2)
+		pose_goal.orientation.z = v.item(2)*np.sin(th/2)
+		pose_goal.orientation.w = np.cos(th/2)
 
-		# self.arm_move_group.set_pose_target(pose_goal)
-		# # now we call the planner to compute and execute the plan
-		# plan = self.arm_move_group.go(wait=True)
-		# # Calling `stop()` ensures that there is no residual movement
-		# self.arm_move_group.stop()
-		# # It is always good to clear your targets after planning with poses.
-		# # Note: there is no equivalent function for clear_joint_value_targets()
-		# self.arm_move_group.clear_pose_targets()
+		self.arm_move_group.set_pose_target(pose_goal)
+		# now we call the planner to compute and execute the plan
+		plan = self.arm_move_group.go(wait=True)
+		# Calling `stop()` ensures that there is no residual movement
+		self.arm_move_group.stop()
+		# It is always good to clear your targets after planning with poses.
+		# Note: there is no equivalent function for clear_joint_value_targets()
+		self.arm_move_group.clear_pose_targets()
 		pass
 
 
