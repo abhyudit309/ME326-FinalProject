@@ -13,7 +13,8 @@ class AStar(object):
         
         self.obs_spacing = obs_spacing
 
-        self.arm_reach = 0.3
+
+        self.arm_reach = 0.001
 
         self.x_init = self.snap_to_grid(x_init) # initial state
         self.x_goal = self.snap_to_grid(x_goal) # goal state

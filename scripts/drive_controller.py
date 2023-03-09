@@ -23,7 +23,7 @@ class DriveController:
 
         self.mobile_base_vel_publisher = rospy.Publisher("/locobot/mobile_base/commands/velocity", Twist, queue_size=1)
 
-        self.L = 0.1
+        self.L = 0.3
         self.path = np.zeros((1,2))
         self.p = np.zeros(2)
         self.thread_lock = threading.Lock()
@@ -99,7 +99,7 @@ class DriveController:
         if self.run_on_robot:
             k = 8
         else:
-            k = 13
+            k = 10
         u = np.ravel((k*np.linalg.inv(M)) @ (target - p).reshape((2,1)))
 
         v = u[0]
