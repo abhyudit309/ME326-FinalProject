@@ -12,6 +12,10 @@ The rules for the task are as follows: Each block present at a station will earn
 
 ## System Architecture
 
+An overview of the system architecture is shown below:
+
+[!image](https://imgur.com/a/7UjXKWs)
+
 ### Conductor Module
 
 The conductor module is a state machine that orchestrates the other systems and decides what the next task is. The first input is the occupancy grid, which represents the environment and identifies the locations of the blocks and other obstacles. The second input is the highest priority block move. The module then passes the relevant information to each subsystem. The conductor also orchestrates the state of the robot, telling the drive controller when and where to drive and the arm controller when and where to pick and place.
