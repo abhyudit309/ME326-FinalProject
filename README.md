@@ -1,8 +1,6 @@
 # ME326: FinalProject
 
-https://github.com/abhyudit309/ME326-FinalProject/assets/71165429/856a7d0d-83db-4cc6-8dfd-dd9d724524a8
-
-[![Thumbnail](https://img.youtube.com/vi/F3Mx3NWDFKo/sddefault.jpg)](https://www.youtube.com/watch?v=F3Mx3NWDFKo)
+See [`Collaborative Robotics Final Group Report`] and our [project website](https://sites.google.com/stanford.edu/me-326-final-project-team-2/home) for a more detailed description of the project implementation.
 
 ## Overview
 
@@ -49,3 +47,9 @@ The Arm Controller module receives arm commands from the conductor module and ge
 ### Drive Controller Module
 
 The Drive Controller module takes in the desired path from the Path Planner and outputs the linear and angular velocities needed to follow that path. It uses the method from Homework One to control the Locobot’s movement and maintain this desired trajectory. The control point P is set 10cm in front of the center of the Locobot, such that the arm and gripper can easily place or pick up a block.
+
+## Results
+
+https://github.com/abhyudit309/ME326-FinalProject/assets/71165429/856a7d0d-83db-4cc6-8dfd-dd9d724524a8
+
+This video depicts the collaborative capabilities of our system. The robot begins by scanning the environment to learn the positions of the blocks, the status of the stations, and potential obstacles in the space. None of the stations have cubes at the start, so the station tracker has no preference for which station is assigned to which location. Given no other information, the shortest and highest point-gaining move is chosen, and the robot moves the green block to the nearest station. While the robot is making this move, the collaborator moves the blue block to another station. The move is recognized by the station tracker, which increases the probability that the collaborator has chosen this station to be either the red-blue station or the blue-yellow station. Though the system cannot be sure which of these options the collaborator believes, this move increased the probability of the blue-red station assignment, which bumps the expected value of moving the red block there. The human collaborator then decides to disagree with the robot and move the blue and yellow blocks to the station that the robot has already assigned. Luckily, our system is a flexible collaborator that changes its beliefs based on the actions of others, even if the actions are sub-optimal. At this point, the system has strong confidence that the blue-red station is correct and that the station that now has 3 cubes is not the green station. It decides to move the green cube to the nearest empty station, completing the resource goal.
