@@ -1,6 +1,6 @@
 # ME326: FinalProject
 
-See [`ME326 - Final Group Report`](https://github.com/abhyudit309/ME326-FinalProject/blob/main/ME326%20-%20Final%20Group%20Report.pdf) and our [project website](https://sites.google.com/stanford.edu/me-326-final-project-team-2/home) for a more detailed description of the project implementation.
+See [`ME326 - Final Group Report.pdf`](https://github.com/abhyudit309/ME326-FinalProject/blob/main/ME326%20-%20Final%20Group%20Report.pdf) and our [project website](https://sites.google.com/stanford.edu/me-326-final-project-team-2/home) for a more detailed description of the project implementation.
 
 ## Overview
 
