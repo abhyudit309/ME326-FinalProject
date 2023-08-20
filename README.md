@@ -14,7 +14,7 @@ The rules for the task are as follows: Each block present at a station will earn
 
 An overview of the system architecture is shown below:
 
-![image](https://imgur.com/a/7UjXKWs)
+![image](https://i.imgur.com/nKLskFs.png)
 
 ### Conductor Module
 
