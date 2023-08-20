@@ -2,6 +2,8 @@
 
 https://github.com/abhyudit309/ME326-FinalProject/assets/71165429/856a7d0d-83db-4cc6-8dfd-dd9d724524a8
 
+[![Thumbnail](https://img.youtube.com/vi/F3Mx3NWDFKo/sddefault.jpg)](https://www.youtube.com/watch?v=F3Mx3NWDFKo)
+
 ## Overview
 
 Our project revolves around the collaboration of two robots to gather resources without digital communication. The robots are given station locations and resource requests but are not told which request should go to each station. Each robot can only manipulate some of the block colors. The robots must collaborate to determine when and where to gather each resource and decide on a shared configuration despite the absence of digital communication.
